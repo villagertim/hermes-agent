@@ -1,51 +1,97 @@
 # SYSTEM STATUS & ARCHITECTURE REVIEW
-**Date**: May 15, 2026
+**Date**: June 2, 2026
 **Project**: Multi-Tenant Hermes Agent Infrastructure
 
 ## Executive Summary
 The workspace `/home/cia-one/dev/hermes-agent` orchestrates a highly isolated, multi-tenant AI environment for two users: **Tim** and **Chrisann**. The system relies on the `hermes-agent` framework, powered by local LLMs via `LiteLLM`, and features strict data segregation using Docker networks, Nginx reverse proxying, and isolated volume mounts.
 
+All external traffic is routed via a **Cloudflare Zero Trust Tunnel** (`hermes-home-server`) — no port forwarding on the residential router. The hermes-proxy nginx container handles virtual-host routing by `Host:` header.
+
+---
+
+## Domain Routing Map
+
+| Domain | Auth | Target Container | Repo |
+| :--- | :--- | :--- | :--- |
+| `villagertim.com`, `www.villagertim.com` | None — Public | `villagertim-web:80` | `/home/cia-one/dev/villagertim-website/` |
+| `agent.villagertim.com` | Tim | `hermes-tim-dashboard:9119` | this repo |
+| `notes.villagertim.com` | Tim | `obsidian-gui-tim:3000` | this repo |
+| `briefer.villagertim.com` | Tim | `daily-briefer:8080` | `/home/cia-one/dev/daily-briefer/` |
+| `automate.villagertim.com` | Tim | `n8n-tim:5678` | this repo |
+| `iqua.villagertim.com` | Tim | `iqua-dashboard:8088` | this repo |
+| `agent.villagerchrisann.com` | Chrisann | `hermes-chrisann-dashboard:9119` | this repo |
+| `notes.villagerchrisann.com` | Chrisann | `obsidian-gui-chrisann:3000` | this repo |
+| `briefer.villagerchrisann.com` | Chrisann | `daily-briefer-chrisann:8081` | `/home/cia-one/dev/daily-briefer/` |
+| `automate.villagerchrisann.com` | Chrisann | `n8n-chrisann:5678` | this repo |
+
+---
+
 ## Deployed Services & Networking
-All web services are secured behind an Nginx reverse proxy using HTTP Basic Authentication (`.htpasswd`). Internal communication happens securely on the `litellm_default` Docker network.
+All private web services are secured behind Nginx reverse proxy using HTTP Basic Authentication (`.htpasswd`). Internal communication happens on the `litellm_default` Docker network.
 
-| Service Description | User | Internal Port | External Port | Credentials |
-| :--- | :--- | :--- | :--- | :--- |
-| **Hermes Web Dashboard** | Tim | 9119 | `9119` | `tim` / `tim123` |
-| **Hermes Web Dashboard** | Chrisann | 9119 | `9120` | `chrisann` / `chrisann123` |
-| **Obsidian Visual Web GUI** | Tim | 3000 | `9121` | `tim` / `tim123` |
-| **Obsidian Visual Web GUI** | Chrisann | 3000 | `9122` | `chrisann` / `chrisann123` |
-| **n8n Automation Engine** | Tim | 5678 | `9123` | `tim` / `tim123` |
-| **n8n Automation Engine** | Chrisann | 5678 | `9124` | `chrisann` / `chrisann123` |
+| Service Description | User | Internal Port | Credentials |
+| :--- | :--- | :--- | :--- |
+| **Personal Website** | Tim (public) | 80 | None |
+| **Hermes Web Dashboard** | Tim | 9119 | `tim` / `tim123` |
+| **Hermes Web Dashboard** | Chrisann | 9119 | `chrisann` / `chrisann123` |
+| **Obsidian Visual Web GUI** | Tim | 3000 | `tim` / `tim123` |
+| **Obsidian Visual Web GUI** | Chrisann | 3000 | `chrisann` / `chrisann123` |
+| **n8n Automation Engine** | Tim | 5678 | `tim` / `tim123` |
+| **n8n Automation Engine** | Chrisann | 5678 | `chrisann` / `chrisann123` |
 
-*(Note: The LiteLLM proxy engines run independently on ports `4001` and `4002` respectively).*
+*(Note: LiteLLM proxy engines run independently on ports `4001` and `4002` respectively.)*
+
+---
+
+## Recent Accomplishments (June 2, 2026)
+
+1. **Upgraded hermes-agent to v0.15.2** (tag `v2026.5.29.2`)
+   - Backup-reset-restore upgrade from v0.14.0
+   - Upstream `model_switch.py` patch dropped (upstreamed in v0.15.1)
+   - New s6-overlay process supervision — logs at `/opt/data/logs/gateway.log`
+
+2. **Added MCP Tools** (SQLite, Sequential Thinking, Browser Automation)
+   - `sequential-thinking`: `npx -y @modelcontextprotocol/server-sequential-thinking`
+   - `sqlite`: `uvx --from mcp-server-sqlite mcp-server-sqlite` (NOT npm — doesn't exist)
+   - `puppeteer`: `npx -y @playwright/mcp --headless` (NOT deprecated `server-puppeteer`)
+   - Chromium added to Dockerfile for headless browser support
+
+3. **villagertim.com Public Website** — NEW
+   - New repo: `/home/cia-one/dev/villagertim-website/`
+   - Static HTML/CSS, served by nginx:alpine Docker container (`villagertim-web`)
+   - Positioned as: AI tools and guidance for active retirees
+   - nginx.conf updated: `server {}` blocks for `villagertim.com` + `www.villagertim.com`
+   - Cloudflare Public Hostnames configured — both DNS entries auto-created by tunnel
+
+---
 
 ## Recent Accomplishments (May 15, 2026)
 
 1. **Obsidian MCP Integration (`Vasallo94`)**
-   - Successfully integrated the `Vasallo94/obsidian-mcp-server` for both agents.
-   - Enabled advanced Semantic Search (RAG) and vault analysis tools.
+   - Integrated `Vasallo94/obsidian-mcp-server` for both agents.
+   - Enabled Semantic Search (RAG) and vault analysis tools.
    - Enforced strict Read-Only constraints for the Antigravity assistant system.
 
 2. **Access & Security Remediation**
-   - Fixed internal gateway blockades (`No user allowlists configured`) by properly injecting `GATEWAY_ALLOW_ALL_USERS=true` into the isolated environment variables.
+   - Fixed internal gateway blockades (`No user allowlists configured`) by injecting `GATEWAY_ALLOW_ALL_USERS=true`.
 
 3. **Deployment of Human Web GUIs**
    - Deployed `linuxserver/obsidian` containers for both users.
-   - Bridged the gap between human operators and AI agents, allowing visual, real-time collaboration within the exact same Obsidian vaults used by the AI.
+   - Bridges human operators and AI agents in the same live Obsidian vault.
 
 4. **Hermes Core System Update**
-   - Successfully executed a complex system update to pull the latest upstream features from the official `NousResearch/hermes-agent` GitHub repository.
-   - Merged upstream changes seamlessly while retaining our heavy multi-tenant customizations in `docker-compose.yml` and `nginx.conf`.
-   - Rebuilt all Docker images from scratch.
-   - A full system configuration backup was created at `../hermes-agent-backup-2026-05-15.tar.gz`.
+   - Merged upstream `NousResearch/hermes-agent` changes into multi-tenant customizations.
+   - Full backup at `../hermes-agent-backup-2026-05-15.tar.gz`.
 
 5. **n8n Automation Integration**
-   - Deployed completely isolated n8n workflow engines for both Tim and Chrisann.
-   - Maintained zero-crossover security rules by ensuring completely separate containers and databases.
-   - Workflows are now prepared to leverage the "cheap" local `Gemini 3 Flash` model via the internal LiteLLM proxy network.
+   - Isolated n8n engines for Tim and Chrisann — zero crossover, separate databases.
+
+---
 
 ## Outstanding Items / Future Roadmap
 
-*   **n8n Workflow Construction**: Begin building visual AI pipelines (e.g., auto-summarizing emails, scheduling RAG updates) utilizing the newly connected LiteLLM nodes.
-*   **Agent Capability Tuning**: Monitor how Tim and Chrisann's agents utilize the newly unlocked Semantic Search tools within their respective vaults and tweak `obsidianrag` system prompts if necessary.
-*   **External Chat Platforms**: If desired, integrate external messaging platforms (Telegram, Discord) by providing the respective bot tokens to the Hermes Gateways.
+- **villagertim.com** — Personalize About section bio; wire service card inquiry links to contact form or mailto
+- **villagerchrisann.com** — Dockerize `VWC_Website` (Next.js in `/home/cia-one/dev/VWC_Website/`); add nginx block + Cloudflare Public Hostnames
+- **n8n Workflow Construction** — Build AI pipelines leveraging local LiteLLM nodes (auto-summarize emails, RAG updates)
+- **Agent Capability Tuning** — Monitor Semantic Search usage; tune `obsidianrag` prompts as needed
+- **External Chat Platforms** — Telegram/Discord integration via Hermes Gateway bot tokens

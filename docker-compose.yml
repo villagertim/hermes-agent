@@ -44,7 +44,7 @@ services:
     environment:
       - HERMES_UID=${HERMES_UID:-1000}
       - HERMES_GID=${HERMES_GID:-1000}
-    command: ["gateway", "run"]
+    command: [ "gateway", "run" ]
 
   # ─────────────────────────────────────────────────────────────────────────────
   # TIM'S AGENT (Dashboard)
@@ -64,7 +64,7 @@ services:
     environment:
       - HERMES_UID=${HERMES_UID:-1000}
       - HERMES_GID=${HERMES_GID:-1000}
-    command: ["dashboard", "--host", "0.0.0.0", "--port", "9119", "--insecure", "--no-open"]
+    command: [ "dashboard", "--host", "0.0.0.0", "--port", "9119", "--insecure", "--no-open" ]
 
   # ─────────────────────────────────────────────────────────────────────────────
   # CHRISANN'S AGENT (Gateway)
@@ -87,7 +87,7 @@ services:
     environment:
       - HERMES_UID=${HERMES_UID:-1000}
       - HERMES_GID=${HERMES_GID:-1000}
-    command: ["gateway", "run"]
+    command: [ "gateway", "run" ]
 
   # ─────────────────────────────────────────────────────────────────────────────
   # CHRISANN'S AGENT (Dashboard)
@@ -107,7 +107,7 @@ services:
     environment:
       - HERMES_UID=${HERMES_UID:-1000}
       - HERMES_GID=${HERMES_GID:-1000}
-    command: ["dashboard", "--host", "0.0.0.0", "--port", "9119", "--insecure", "--no-open"]
+    command: [ "dashboard", "--host", "0.0.0.0", "--port", "9119", "--insecure", "--no-open" ]
 
   # ─────────────────────────────────────────────────────────────────────────────
   # TIM'S AGENT (Obsidian Web GUI)
@@ -122,9 +122,12 @@ services:
       - PUID=${HERMES_UID:-1000}
       - PGID=${HERMES_GID:-1000}
       - TZ=Etc/UTC
+      - PASSWORD=timherm@1840
+      - CUSTOM_HTTPS_PORT=443
     volumes:
       - ./data/tim/obsidian-gui-config:/config
       - ./data/tim/obsidian:/config/vault
+      - ./selkies-nginx-noauth.conf:/etc/nginx/sites-enabled/default:ro
 
   # ─────────────────────────────────────────────────────────────────────────────
   # CHRISANN'S AGENT (Obsidian Web GUI)
@@ -139,9 +142,12 @@ services:
       - PUID=${HERMES_UID:-1000}
       - PGID=${HERMES_GID:-1000}
       - TZ=Etc/UTC
+      - PASSWORD=Caherm@1840
+      - CUSTOM_HTTPS_PORT=443
     volumes:
       - ./data/chrisann/obsidian-gui-config:/config
       - ./data/chrisann/obsidian:/config/vault
+      - ./selkies-nginx-noauth.conf:/etc/nginx/sites-enabled/default:ro
 
   # ─────────────────────────────────────────────────────────────────────────────
   # TIM'S AGENT (n8n)
@@ -177,16 +183,23 @@ services:
     networks:
       - litellm_default
     ports:
-      - "9119:9119"
-      - "9120:9120"
-      - "9121:9121"
-      - "9122:9122"
-      - "9123:9123"
-      - "9124:9124"
+      - "80:80"
+      - "443:443"
     volumes:
       - ./nginx.conf:/etc/nginx/nginx.conf:ro
       - ./.htpasswd-tim:/etc/nginx/.htpasswd-tim:ro
       - ./.htpasswd-chrisann:/etc/nginx/.htpasswd-chrisann:ro
+
+  # ─────────────────────────────────────────────────────────────────────────────
+  # CLOUDFLARE TUNNEL
+  # ─────────────────────────────────────────────────────────────────────────────
+  cloudflare-tunnel:
+    image: cloudflare/cloudflared:latest
+    container_name: cloudflare-tunnel
+    restart: unless-stopped
+    networks:
+      - litellm_default
+    command: tunnel --no-autoupdate run --token ${CLOUDFLARE_TUNNEL_TOKEN}
 
 networks:
   litellm_default:

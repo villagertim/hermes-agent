@@ -142,6 +142,7 @@ services:
     image: lscr.io/linuxserver/obsidian:latest
     container_name: obsidian-gui-tim
     restart: unless-stopped
+    profiles: [gui]   # Opt-in: docker compose --profile gui up -d
     networks:
       - litellm_default
     environment:
@@ -166,6 +167,7 @@ services:
     image: lscr.io/linuxserver/obsidian:latest
     container_name: obsidian-gui-chrisann
     restart: unless-stopped
+    profiles: [gui]   # Opt-in: docker compose --profile gui up -d
     networks:
       - litellm_default
     environment:

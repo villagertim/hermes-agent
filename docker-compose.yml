@@ -132,7 +132,7 @@ services:
       - PUID=${HERMES_UID:-1000}
       - PGID=${HERMES_GID:-1000}
       - TZ=Etc/UTC
-      - PASSWORD=timherm@1840
+      - PASSWORD=${OBSIDIAN_PASSWORD_TIM}
       - CUSTOM_HTTPS_PORT=443
     volumes:
       - ./data/tim/obsidian-gui-config:/config
@@ -152,7 +152,7 @@ services:
       - PUID=${HERMES_UID:-1000}
       - PGID=${HERMES_GID:-1000}
       - TZ=Etc/UTC
-      - PASSWORD=Caherm@1840
+      - PASSWORD=${OBSIDIAN_PASSWORD_CHRISANN}
       - CUSTOM_HTTPS_PORT=443
     volumes:
       - ./data/chrisann/obsidian-gui-config:/config

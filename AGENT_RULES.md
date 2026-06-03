@@ -26,5 +26,11 @@ The user has explicitly stated that AI agents must not jump ahead, make assumpti
 *   All agents operating in this workspace must read `MCP_ACCESS_RULES.md` before accessing or interacting with any vaults.
 *   All agents MUST read `docs/UPSTREAM_SYNC.md` before attempting to pull upstream updates or sync with external branches.
 
+## 6. Secret Handling
+*   **NEVER** write literal secret values — API keys, tokens, passwords, bearer tokens — into any file an agent can read: vault notes, markdown documents, plans, debriefs, walkthroughs, or config files.
+*   When a secret is relevant to document (e.g., "this service authenticates with key X"), reference it by its **environment variable name and file path** instead: e.g., `$LITELLM_MASTER_KEY` — see `/home/cia-one/dev/litellm/.env`.
+*   This applies even when you have been granted explicit read permission to a `.env` file during a task. The permission to read a secret does not grant permission to copy it into a document.
+
 **ENFORCEMENT**: These boundaries supersede all other standard operating procedures. When in doubt, do nothing and ask the user.
+
 

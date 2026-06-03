@@ -48,6 +48,10 @@ services:
       - HERMES_UID=${HERMES_UID:-1000}
       - HERMES_GID=${HERMES_GID:-1000}
     command: [ "gateway", "run" ]
+    deploy:
+      resources:
+        limits:
+          memory: 1024M
 
   # ─────────────────────────────────────────────────────────────────────────────
   # TIM'S AGENT (Dashboard)
@@ -70,6 +74,10 @@ services:
       - HERMES_UID=${HERMES_UID:-1000}
       - HERMES_GID=${HERMES_GID:-1000}
     command: [ "dashboard", "--host", "0.0.0.0", "--port", "9119", "--insecure", "--no-open" ]
+    deploy:
+      resources:
+        limits:
+          memory: 768M
 
   # ─────────────────────────────────────────────────────────────────────────────
   # CHRISANN'S AGENT (Gateway)
@@ -96,6 +104,10 @@ services:
       - HERMES_UID=${HERMES_UID:-1000}
       - HERMES_GID=${HERMES_GID:-1000}
     command: [ "gateway", "run" ]
+    deploy:
+      resources:
+        limits:
+          memory: 1024M
 
   # ─────────────────────────────────────────────────────────────────────────────
   # CHRISANN'S AGENT (Dashboard)
@@ -118,6 +130,10 @@ services:
       - HERMES_UID=${HERMES_UID:-1000}
       - HERMES_GID=${HERMES_GID:-1000}
     command: [ "dashboard", "--host", "0.0.0.0", "--port", "9119", "--insecure", "--no-open" ]
+    deploy:
+      resources:
+        limits:
+          memory: 768M
 
   # ─────────────────────────────────────────────────────────────────────────────
   # TIM'S AGENT (Obsidian Web GUI)
@@ -138,6 +154,10 @@ services:
       - ./data/tim/obsidian-gui-config:/config
       - ./data/tim/obsidian:/config/vault
       - ./selkies-nginx-noauth.conf:/etc/nginx/sites-enabled/default:ro
+    deploy:
+      resources:
+        limits:
+          memory: 512M
 
   # ─────────────────────────────────────────────────────────────────────────────
   # CHRISANN'S AGENT (Obsidian Web GUI)
@@ -158,6 +178,10 @@ services:
       - ./data/chrisann/obsidian-gui-config:/config
       - ./data/chrisann/obsidian:/config/vault
       - ./selkies-nginx-noauth.conf:/etc/nginx/sites-enabled/default:ro
+    deploy:
+      resources:
+        limits:
+          memory: 512M
 
   # ─────────────────────────────────────────────────────────────────────────────
   # TIM'S AGENT (n8n)
@@ -170,6 +194,10 @@ services:
       - litellm_default
     volumes:
       - ./data/tim/n8n_data:/home/node/.n8n
+    deploy:
+      resources:
+        limits:
+          memory: 512M
 
   # ─────────────────────────────────────────────────────────────────────────────
   # CHRISANN'S AGENT (n8n)
@@ -182,6 +210,10 @@ services:
       - litellm_default
     volumes:
       - ./data/chrisann/n8n_data:/home/node/.n8n
+    deploy:
+      resources:
+        limits:
+          memory: 512M
 
   # ─────────────────────────────────────────────────────────────────────────────
   # REVERSE PROXY (Nginx)
@@ -199,6 +231,10 @@ services:
       - ./nginx.conf:/etc/nginx/nginx.conf:ro
       - ./.htpasswd-tim:/etc/nginx/.htpasswd-tim:ro
       - ./.htpasswd-chrisann:/etc/nginx/.htpasswd-chrisann:ro
+    deploy:
+      resources:
+        limits:
+          memory: 64M
 
   # ─────────────────────────────────────────────────────────────────────────────
   # NTFY — Self-Hosted Push Notifications
@@ -230,6 +266,10 @@ services:
     restart: unless-stopped
     networks:
       - litellm_default
+    deploy:
+      resources:
+        limits:
+          memory: 128M
 
   # ─────────────────────────────────────────────────────────────────────────────
   # CLOUDFLARE TUNNEL
@@ -241,6 +281,10 @@ services:
     networks:
       - litellm_default
     command: tunnel --no-autoupdate run --token ${CLOUDFLARE_TUNNEL_TOKEN}
+    deploy:
+      resources:
+        limits:
+          memory: 128M
 
 networks:
   litellm_default:

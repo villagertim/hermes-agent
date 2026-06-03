@@ -218,7 +218,8 @@ services:
     environment:
       - NTFY_BASE_URL=https://ntfy.villagertim.com
       - NTFY_CACHE_FILE=/var/lib/ntfy/cache.db
-      - NTFY_AUTH_DEFAULT_ACCESS=read-write
+      - NTFY_AUTH_FILE=/var/lib/ntfy/user.db
+      - NTFY_AUTH_DEFAULT_ACCESS=deny-all
       - NTFY_BEHIND_PROXY=true
       # Required for iOS push notifications on self-hosted servers.
       # Relays APNs wake-up signals through ntfy.sh (no account needed).

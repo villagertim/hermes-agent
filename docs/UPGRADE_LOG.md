@@ -398,3 +398,26 @@ auxiliary:
   - Tim's gateway queried `get_spend_summary` successfully returning `$10.00 monthly` limit.
   - Chrisann's gateway queried `get_spend_summary` successfully returning `$6.00 monthly` limit.
 
+---
+
+## Infrastructure: System Backup Hardening & OneDrive Upload
+
+**Date**: 2026-06-04
+**Conversation**: `83a33105-6449-4f98-83c2-cc7774eab754`
+
+### What Was Hardened
+
+1. **ntfy Authentication integration in backup.sh**:
+   - The backup script was previously posting notifications anonymously to `http://localhost:80/hermes-tim`, resulting in a silent `403 Forbidden` due to ACL policies on the local ntfy container.
+   - Updated [backup.sh](file:///home/cia-one/dev/homelab-docs/scripts/backup.sh) to read the credentials file `.tim-agent.env` dynamically, retrieve `NTFY_USER` and `NTFY_PASS`, base64 encode them on the host, and pass them as a custom Basic Auth header (`Authorization: Basic ...`) via `docker exec ntfy wget`. This guarantees delivery of notifications to your local ntfy channel.
+2. **rclone lsf Resilience**:
+   - Because the new OneDrive remote (`onedrive-crypt:`) did not initially contain `/weekly` and `/monthly` folders, `rclone lsf` calls returned exit code 3, crashing the script mid-execution due to `set -euo pipefail`.
+   - Hardened the daily, weekly, and monthly pruning lists with `|| true` guards and explicit line-count parsing (using `grep -c '^'`) to prevent failures when listing empty or missing directories.
+3. **Typo Correction**:
+   - Corrected the success notification destination string from `Google Drive` to `OneDrive` to match the target storage service.
+
+### Execution Verification
+- Ran the hardened backup script in dry-run and full mode.
+- Created and successfully uploaded `homelab-backup-2026-06-04_112650.tar.gz` (~841 MB) to `onedrive-crypt:daily/`.
+- Verified that the `ntfy` container successfully authorized the publish request (`200 OK` from basic auth) and logged the local publication.
+

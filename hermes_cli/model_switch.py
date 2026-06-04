@@ -1603,6 +1603,9 @@ def list_authenticated_providers(
             if not raw_name or not api_url:
                 continue
             api_key = (entry.get("api_key") or "").strip()
+            if not api_key:
+                key_env = str(entry.get("key_env", "") or "").strip()
+                api_key = os.environ.get(key_env, "").strip() if key_env else ""
 
             group_key = (api_url, api_key)
             if group_key not in groups:

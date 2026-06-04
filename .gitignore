@@ -95,3 +95,5 @@ docs/superpowers/*
 .tim-agent.env
 .chrisann-agent.env
 .ntfy-credentials
+/secrets/
+

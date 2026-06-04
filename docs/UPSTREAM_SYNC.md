@@ -55,6 +55,17 @@ git diff backup-stable-<date>..upstream-sync .env.example
 ```
 *Action*: If any new variables are found, append them as comments or default definitions in both `.tim-agent.env` and `.chrisann-agent.env`.
 
+### Step 5b: Reapply Local Core Framework Patches
+Check the latest entries in [UPGRADE_LOG.md](file:///home/cia-one/dev/hermes-agent/docs/UPGRADE_LOG.md) to see if there are any active local core patches that have not yet been upstreamed.
+For example:
+- **Custom Provider key_env Resolution**: Verify that `hermes_cli/model_switch.py` correctly resolves `key_env` to environment variables in Section 4 of `list_authenticated_providers()`. If not, reapply the patch:
+  ```python
+            api_key = (entry.get("api_key") or "").strip()
+            if not api_key:
+                key_env = str(entry.get("key_env", "") or "").strip()
+                api_key = os.environ.get(key_env, "").strip() if key_env else ""
+  ```
+
 ### Step 6: Build & Verify Services
 Trigger the verification protocol:
 1.  **Lock dependencies**: Run `uv lock --check` (or `uv lock` if dependencies need updating) to ensure Python package locking is fully compatible.

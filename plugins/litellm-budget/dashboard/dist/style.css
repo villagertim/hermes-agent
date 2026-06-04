@@ -1,0 +1,29 @@
+/* Custom Styles for LiteLLM Budget Dashboard Plugin */
+
+.litellm-budget-card {
+  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+.litellm-budget-card:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 12px 20px -10px rgba(0, 0, 0, 0.3);
+  border-color: rgba(var(--primary), 0.3);
+}
+
+/* Custom scrollbar for model spend list */
+.model-spend-list::-webkit-scrollbar {
+  width: 4px;
+}
+
+.model-spend-list::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+.model-spend-list::-webkit-scrollbar-thumb {
+  background: rgba(156, 163, 175, 0.2);
+  border-radius: 4px;
+}
+
+.model-spend-list::-webkit-scrollbar-thumb:hover {
+  background: rgba(156, 163, 175, 0.4);
+}

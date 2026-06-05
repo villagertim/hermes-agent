@@ -96,4 +96,7 @@ docs/superpowers/*
 .chrisann-agent.env
 .ntfy-credentials
 /secrets/
+/secrets_inventory.md
+/secrets_inventory.md.enc
+/secrets_inventory.html
 

@@ -4,6 +4,56 @@ This file is untracked by Git to ensure that it survives future repository reset
 
 ---
 
+## Upgrade: v0.15.2 → v0.16.0
+
+**Date**: 2026-06-06
+**Target**: tag `v2026.6.5` @ commit `3c231eb39`
+**Method**: backup-reset-restore (Upstream Synchronization Playbook)
+**Conversation**: `b4d73ce7-d2e8-4660-8e62-a4c31cecefcd`
+
+### Pre-Upgrade State
+- Running version: `v0.15.2` (tag `v2026.5.29.2`)
+- Local patches: `key_env` patch in `hermes_cli/model_switch.py` — now upstreamed in v0.16.0, dropped
+- Custom files: ~60 files (docker-compose, nginx, .env files, budget plugin, MCP servers, etc.)
+- Docker image: `hermes-agent:latest` tagged for backup reference
+
+### Plan
+Perform safe upgrade by backing up all customized files to `../custom-deployment-backup/`, creating git branch `backup-stable-2026-06-06`, checking out tag `v2026.6.5`, restoring the customization layer, re-applying `chromium` to the Dockerfile `apt-get install` line, and rebuilding images with `--no-cache`.
+
+### What Changed Upstream (v0.15.2 → v0.16.0)
+- **Dockerfile**: Added `iputils-ping`, `python3-venv`, `libolm-dev`; tini backward-compat shim (`ln -sf /init /usr/bin/tini`); `HERMES_TUI_DIR` env var for prebuilt TUI bundle; hindsight memory client baked into image; gateway dir made runtime-writable
+- **model_switch.py**: Our `key_env` patch fully upstreamed with additional improvements (credential identity grouping, `discover_models` support, `api_mode` wire protocol separation)
+- **pyproject.toml**: New extras (`computer-use`, `mistral`, `youtube`, `google`); `starlette==1.0.1` pinned for CVE-2026-48710; hindsight extra added to `[all]`
+- **Desktop app**: New Electron-based native desktop client (not relevant to our Docker deployment)
+- **.env.example**: New STT providers (ElevenLabs, Mistral, xAI) and override variables
+
+### Result
+- [x] Git reset clean to `v2026.6.5`
+- [x] Customization layer restored
+- [x] Chromium re-applied to Dockerfile
+- [x] Docker build succeeded (`--no-cache`, 277s)
+- [x] All containers started
+- [x] Tim gateway healthy (v0.16.0 confirmed)
+- [x] Chrisann gateway healthy (v0.16.0 confirmed)
+- [x] Tim dashboard accessible (HTTP 200)
+- [x] Chrisann dashboard accessible (HTTP 200)
+- [x] SearXNG reachable from both agents
+- [x] LiteLLM-Tim reachable and healthy
+- [x] Chromium installed (`148.0.7778.215`)
+- [x] Main branch merged
+
+### Post-Upgrade Adjustments
+- `key_env` patch in `hermes_cli/model_switch.py` **dropped** — fully upstreamed in v0.16.0 with enhanced credential identity grouping
+- Chrisann's Telegram polling showed transient conflict on restart (self-healed within 20s)
+
+### Lessons for Next Upgrade
+- Upstream now ships with `libolm-dev` for Matrix encryption support — no longer needs separate installation
+- `HERMES_TUI_DIR` env var is critical for Docker deployments — prevents runtime `npm install` race conditions across concurrent embedded-chat connections
+- The tini backward-compat shim (`/usr/bin/tini → /init`) means legacy orchestration templates still work
+- Always use tag pinning (e.g. `v2026.6.5`) rather than branch-head `origin/main`
+
+---
+
 ## Upgrade: v0.14.0 → v0.15.2
 
 **Date**: 2026-06-02

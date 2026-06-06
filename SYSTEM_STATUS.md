@@ -1,5 +1,5 @@
 # SYSTEM STATUS & ARCHITECTURE REVIEW
-**Date**: June 2, 2026
+**Date**: June 6, 2026
 **Project**: Multi-Tenant Hermes Agent Infrastructure
 
 ## Executive Summary
@@ -40,6 +40,34 @@ All private web services are secured behind Nginx reverse proxy using HTTP Basic
 | **n8n Automation Engine** | Chrisann | 5678 | `chrisann` / `chrisann123` |
 
 *(Note: LiteLLM proxy engines run independently on ports `4001` and `4002` respectively.)*
+
+---
+
+## Recent Accomplishments (June 6, 2026)
+
+1. **Upgraded hermes-agent to v0.16.0** (tag `v2026.6.5`)
+   - Backup-reset-restore upgrade from v0.15.2
+   - `key_env` patch dropped (fully upstreamed)
+   - New desktop app, tini shim, hindsight memory in image
+
+2. **Chrisann Service Provisioning — Full Parity with Tim**
+   - **Spotify**: PKCE OAuth completed, 7 tools enabled (playback, search, queue, playlists, albums, library, devices)
+   - **FAL.ai**: Image generation key configured (FLUX 2 Klein 9B default)
+   - **Firecrawl**: Web search + content extraction key configured
+   - **Tavily**: Fallback web search key configured
+   - **Config alignment**: web backend, extract routing, compression routing, approvals, ntfy, platform toolsets all matched to Tim's
+
+3. **Both Agents Now Have Identical Capability Sets**:
+   - LLM inference via dedicated LiteLLM proxies
+   - Web search (SearXNG + Firecrawl + Tavily fallback)
+   - Image generation (FAL.ai)
+   - Spotify control (7 tools, Premium playback)
+   - Obsidian vault access (MCP)
+   - Browser automation (Playwright MCP)
+   - SQLite memory (MCP)
+   - Sequential thinking (MCP)
+   - Push notifications (ntfy)
+   - Telegram bot integration
 
 ---
 
@@ -90,8 +118,9 @@ All private web services are secured behind Nginx reverse proxy using HTTP Basic
 
 ## Outstanding Items / Future Roadmap
 
-- **villagertim.com** — Personalize About section bio; wire service card inquiry links to contact form or mailto
 - **villagerchrisann.com** — Dockerize `VWC_Website` (Next.js in `/home/cia-one/dev/VWC_Website/`); add nginx block + Cloudflare Public Hostnames
+- **Chrisann Personality & UX** — Create SOUL.md, custom skin, and BOOT.md startup hook matching Tim's setup
 - **n8n Workflow Construction** — Build AI pipelines leveraging local LiteLLM nodes (auto-summarize emails, RAG updates)
+- **Discord Integration** — Voice channel support for hands-free agent conversations
+- **Home Assistant Integration** — Smart device control (expected ~July 2026)
 - **Agent Capability Tuning** — Monitor Semantic Search usage; tune `obsidianrag` prompts as needed
-- **External Chat Platforms** — Telegram/Discord integration via Hermes Gateway bot tokens

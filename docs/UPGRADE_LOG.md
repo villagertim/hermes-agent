@@ -4,6 +4,80 @@ This file is untracked by Git to ensure that it survives future repository reset
 
 ---
 
+## Service Provisioning: Chrisann — Full Parity with Tim
+
+**Date**: 2026-06-06
+**Base version**: `v0.16.0` (tag `v2026.6.5`)
+**Conversation**: `d6e1ab72-b8a8-4c64-9091-b4beff00312e`
+
+### What Was Done
+
+Provisioned all external service integrations for Chrisann's agent to match Tim's setup. Previously, Chrisann only had LiteLLM proxy access and basic SearXNG search. Now she has full feature parity.
+
+### API Keys Added (`data/chrisann/hermes/.env`)
+
+| Service | Env Var | Purpose |
+|---|---|---|
+| FAL.ai | `FAL_KEY` | Image generation (FLUX 2 Klein 9B default) |
+| Firecrawl | `FIRECRAWL_API_KEY` | Web search + content extraction |
+| Tavily | `TAVILY_API_KEY` | Fallback web search (1,000 free/mo) |
+
+### Spotify OAuth (`data/chrisann/hermes/auth.json`)
+
+- Registered new Spotify developer app for Chrisann at `developer.spotify.com/dashboard`
+- PKCE OAuth completed — tokens stored under `providers.spotify` in `auth.json`
+- Redirect URI: `http://127.0.0.1:43829/spotify/callback` (port 43829 to avoid collision with Tim's 43828)
+- Full scope: playback control, library, playlists, search, recently played
+- `HERMES_SPOTIFY_CLIENT_ID` and `HERMES_SPOTIFY_REDIRECT_URI` added to `data/chrisann/hermes/.env`
+
+### Config Alignment (`data/chrisann/hermes/config.yaml`)
+
+Changes made to match Tim's config structure:
+
+| Setting | Before | After |
+|---|---|---|
+| `toolsets` | `[hermes-cli]` | `[hermes-cli, spotify]` |
+| `web.backend` | `''` (empty) | `firecrawl` |
+| `web.extract_backend` | `''` (empty) | `firecrawl` |
+| `auxiliary.web_extract.provider` | `auto` | `custom:litellm-chrisann` |
+| `auxiliary.web_extract.model` | `''` | `chrisann-cheap` |
+| `auxiliary.compression.provider` | `auto` | `custom:litellm-chrisann` |
+| `auxiliary.compression.model` | `''` | `chrisann-cheap` |
+| `approvals.mode` | `manual` | `smart` |
+| `approvals.destructive_slash_confirm` | `true` | `false` |
+| `image_gen.model` | (missing) | `fal-ai/flux-2/klein/9b` |
+| `custom_providers` | (missing) | `litellm-chrisann` registered |
+| `ntfy.home_channel` | (missing) | `hermes-chrisann` |
+| `platform_toolsets` | (missing) | Full cli + telegram toolset lists |
+| `known_plugin_toolsets` | (missing) | `spotify` for cli + telegram |
+
+### Remaining Intentional Differences (Personal Preference)
+
+| Setting | Tim | Chrisann | Reason |
+|---|---|---|---|
+| `display.personality` | `kawaii` | `''` | Personal style |
+| `display.skin` | `stealth` | `default` | Personal style |
+| `stt.openai.model` | `whisper` | `chrisann-whisper` | Tenant-specific model name |
+
+### Verification
+
+- [x] Spotify tokens confirmed in `auth.json` (access + refresh token present)
+- [x] FAL_KEY uncommented and set in `.env`
+- [x] FIRECRAWL_API_KEY set in `.env`
+- [x] TAVILY_API_KEY added to `.env`
+- [x] Config aligned with Tim's for all functional settings
+- [x] Container restarted and running (`hermes-chrisann` up)
+
+### Lessons
+
+- Spotify developer dashboard has a provisioning delay for new accounts — "Your account is not ready" error resolves in 2-5 minutes.
+- The "Web API" checkbox is greyed out during this delay. Just wait and refresh.
+- PKCE flow does not need a client secret — only the Client ID.
+- For containerized OAuth: run `hermes auth spotify` from the host with `HERMES_HOME=./data/<tenant>/hermes` to avoid port-exposure issues with Docker.
+- Use unique redirect ports per tenant: Tim=43828, Chrisann=43829.
+
+---
+
 ## Upgrade: v0.15.2 → v0.16.0
 
 **Date**: 2026-06-06
@@ -257,17 +331,21 @@ Deployed a self-hosted SearXNG instance as a shared Docker service:
 
 ---
 
-## Integration: Spotify (Tim Only)
+## Integration: Spotify (Tim — June 4 / Chrisann — June 6)
 
-**Date**: 2026-06-04
+**Date**: 2026-06-04 (Tim), 2026-06-06 (Chrisann)
 
 ### What Was Added
 
-Full Spotify integration for Tim's agent via PKCE OAuth. Adds 7 tools: `spotify_playback`, `spotify_devices`, `spotify_queue`, `spotify_search`, `spotify_playlists`, `spotify_albums`, `spotify_library`.
+Full Spotify integration for both agents via PKCE OAuth. Adds 7 tools: `spotify_playback`, `spotify_devices`, `spotify_queue`, `spotify_search`, `spotify_playlists`, `spotify_albums`, `spotify_library`.
 
-**Files Updated**:
-- `data/tim/hermes/.env` — added `HERMES_SPOTIFY_CLIENT_ID` and `HERMES_SPOTIFY_REDIRECT_URI`
-- `data/tim/hermes/auth.json` — OAuth tokens stored under `providers.spotify`
+**Tim** — Completed June 4:
+- `data/tim/hermes/.env` — `HERMES_SPOTIFY_CLIENT_ID`, redirect port `43828`
+- `data/tim/hermes/auth.json` — OAuth tokens under `providers.spotify`
+
+**Chrisann** — Completed June 6 (see "Service Provisioning: Chrisann" entry above):
+- `data/chrisann/hermes/.env` — `HERMES_SPOTIFY_CLIENT_ID`, redirect port `43829`
+- `data/chrisann/hermes/auth.json` — OAuth tokens under `providers.spotify`
 
 **OAuth Note**: Standard containerized `hermes auth spotify` cannot receive browser callbacks because the callback server listens on `127.0.0.1` inside the container. Workaround: use the manual PKCE script at `scratch/spotify_auth.py` which generates its own verifier, prints the auth URL, and accepts the pasted callback URL from the browser.
 

@@ -70,50 +70,154 @@ web:
 
 ---
 
-## 4. Spotify Integration (NEEDS APP + OAUTH)
+## 4. Spotify Integration (DONE — Tim June 4, Chrisann June 6)
 
-**What Tim has:**
-- Spotify developer app: Client ID `1659b18ce74c4306a45bd9cb072d0d7a`
-- Redirect URI: `http://127.0.0.1:43828/spotify/callback`
-- OAuth PKCE tokens stored in `data/tim/hermes/auth.json` under `providers.spotify`
+**What each tenant needs:**
+- Their own Spotify developer app (Spotify requires per-user app registration)
+- PKCE OAuth tokens in `auth.json`
+- `spotify` in the `toolsets` list in `config.yaml`
+- `spotify` in `platform_toolsets` and `known_plugin_toolsets` in `config.yaml`
 
-**Steps for Chrisann:**
-1. Chrisann logs into [developer.spotify.com/dashboard](https://developer.spotify.com/dashboard) with **her** Spotify account
-2. Creates a new app:
-   - Name: `hermes-chrisann`
-   - Redirect URI: `http://127.0.0.1:43829/spotify/callback` (use port **43829** to avoid conflict)
-   - Check Web API
-3. Copy her Client ID
-4. Add to `data/chrisann/hermes/.env`:
-   ```
-   HERMES_SPOTIFY_CLIENT_ID=<her_client_id>
-   HERMES_SPOTIFY_REDIRECT_URI=http://127.0.0.1:43829/spotify/callback
-   ```
+**Port allocation:**
+- Tim: redirect port `43828`
+- Chrisann: redirect port `43829`
+- Default (upstream): `43827` — do NOT use, conflicts with other services
 
-5. **OAuth flow** — use the manual PKCE script (the containerized hermes can't receive browser callbacks directly):
-   ```bash
-   # Copy the auth script, update CLIENT_ID, REDIRECT_URI, and AUTH_JSON path:
-   # - CLIENT_ID = Chrisann's client ID
-   # - REDIRECT_URI = http://127.0.0.1:43829/spotify/callback
-   # - AUTH_JSON = /opt/data/auth.json (same path, different container volume)
-   
-   docker run --rm -i \
-     --network host \
-     --entrypoint "" \
-     -v ./data/chrisann/hermes:/opt/data \
-     -e HERMES_HOME=/opt/data \
-     -e HOME=/opt/data \
-     hermes-agent \
-     /opt/hermes/.venv/bin/python3 /tmp/spotify_auth.py
-   ```
-   
-   The script generates a URL → user opens in browser → agrees → browser fails to load callback → user pastes the full URL back → script exchanges code for tokens → writes to `auth.json`.
+### Step-by-step procedure (TESTED — this is the exact process that works)
 
-6. Verify: `docker exec hermes-chrisann /opt/hermes/.venv/bin/hermes auth spotify status`
-7. Restart: `docker restart hermes-chrisann`
+#### A. Create the Spotify Developer App
 
-**Gotcha**: The PKCE auth script needs to be updated with Chrisann's CLIENT_ID and port 43829 before running. The script template is at:
-`/home/cia-one/.gemini/antigravity-ide/brain/83a33105-6449-4f98-83c2-cc7774eab754/scratch/spotify_auth.py`
+1. Log into [developer.spotify.com/dashboard](https://developer.spotify.com/dashboard) with the tenant's Spotify account
+2. **WAIT** — New accounts get "Your account is not ready, please wait a few minutes." The "Web API" checkbox will be greyed out. This resolves in 2-5 minutes. Just refresh the page.
+3. Click **Create app** and fill in:
+
+   | Field | Value |
+   |-------|-------|
+   | App name | `hermes-<tenant>` (e.g. `hermes-chrisann`) |
+   | App description | `personal Hermes integration - <tenant>` |
+   | Website | leave blank |
+   | Redirect URI | `http://127.0.0.1:<port>/spotify/callback` |
+   | Which API/SDKs? | check **Web API** (MUST be checked, not greyed out) |
+
+4. Agree to terms → **Save** → click **Settings** → copy the **Client ID**
+5. **No client secret needed** — Hermes uses PKCE, which only requires the Client ID
+
+#### B. Add the Client ID to the tenant's `.env`
+
+```bash
+# Append to data/<tenant>/hermes/.env
+cat >> ./data/<tenant>/hermes/.env << 'EOF'
+
+# Spotify — music curation, playlist management, and playback control
+# App registered at developer.spotify.com (PKCE flow, no client secret needed)
+# OAuth tokens stored in auth.json after running: hermes auth spotify
+HERMES_SPOTIFY_CLIENT_ID=<paste_client_id_here>
+HERMES_SPOTIFY_REDIRECT_URI=http://127.0.0.1:<port>/spotify/callback
+EOF
+```
+
+#### C. Run OAuth from the HOST (NOT from inside the container)
+
+**CRITICAL**: Do NOT run `hermes auth spotify` inside the Docker container. The callback
+listener binds to `127.0.0.1:<port>` inside the container's network namespace, which the
+browser on the host cannot reach. The container does not expose this port.
+
+**CRITICAL**: Do NOT try to SSH tunnel to the container — the port isn't exposed.
+
+**The working method** is to run hermes auth **on the host machine** with `HERMES_HOME`
+pointing to the tenant's data directory. This starts the callback listener on the host's
+`127.0.0.1`, which the browser can reach directly:
+
+```bash
+cd /home/cia-one/dev/hermes-agent
+HERMES_HOME=./data/<tenant>/hermes .venv/bin/hermes auth spotify \
+  --client-id <CLIENT_ID> \
+  --no-browser
+```
+
+The command will:
+1. Print an authorization URL
+2. Open a local HTTP listener on the redirect port
+3. Wait for the browser callback
+
+Copy the authorization URL, open it in a browser, and click **Agree**.
+The browser will redirect to `127.0.0.1:<port>/spotify/callback`.
+The terminal will print "Spotify authorization received".
+
+**If the browser shows "This site can't be reached"**: The callback listener isn't running
+on the host. You probably ran the command inside the container. Kill it and run from the host.
+
+#### D. Verify tokens were saved
+
+```bash
+python3 -c "
+import json
+with open('./data/<tenant>/hermes/auth.json') as f:
+    d = json.load(f)
+s = d.get('providers',{}).get('spotify',{})
+if s.get('access_token'):
+    print('✅ Spotify auth SUCCESS')
+    print(f'   Scope: {s.get(\"scope\")}')
+else:
+    print('❌ No Spotify tokens found')
+"
+```
+
+#### E. Enable the spotify toolset in config.yaml
+
+Add `spotify` to **three** places in `data/<tenant>/hermes/config.yaml`:
+
+```yaml
+# 1. Top-level toolsets list
+toolsets:
+- hermes-cli
+- spotify          # ← ADD THIS
+
+# 2. platform_toolsets (under both cli and telegram)
+platform_toolsets:
+  cli:
+  - spotify        # ← ADD THIS (among the other tools)
+  telegram:
+  - spotify        # ← ADD THIS (among the other tools)
+
+# 3. known_plugin_toolsets
+known_plugin_toolsets:
+  cli:
+  - spotify
+  telegram:
+  - spotify
+```
+
+#### F. Restart the container
+
+```bash
+docker restart hermes-<tenant>
+```
+
+#### G. Verify end-to-end
+
+```bash
+# Check tokens exist
+docker exec hermes-<tenant> python3 -c "
+import json
+with open('/opt/data/auth.json') as f:
+    d = json.load(f)
+print('spotify' in d.get('providers', {}))
+"
+
+# Check toolset is loaded (ask the agent to play something)
+```
+
+### Common mistakes (all encountered during Chrisann setup)
+
+| Mistake | What happens | Fix |
+|---|---|---|
+| Running `hermes` on host without `.venv/bin/` prefix | `Command 'hermes' not found` | Use `.venv/bin/hermes` |
+| Running `hermes auth spotify` inside container | Browser callback gets `ERR_CONNECTION_REFUSED` | Run from host with `HERMES_HOME=./data/<tenant>/hermes` |
+| SSH tunneling to self | `bind: Address already in use` | Don't tunnel — run on host directly |
+| Forgetting `--no-browser` on headless/SSH | Hangs trying to open browser | Add `--no-browser` flag |
+| Setting up tokens but not adding `spotify` to `toolsets` in config.yaml | Agent has no Spotify tools | Add to all three places (toolsets, platform_toolsets, known_plugin_toolsets) |
+| Using default port 43827 | May conflict with other services | Use 43828 (Tim), 43829 (Chrisann) |
 
 ---
 
@@ -226,16 +330,16 @@ docker exec hermes-chrisann python3 -c "from hermes_cli.config import load_env; 
 | 2026-06-04 | Reasoning model (qwen3-thinking) | Shared LiteLLM config | ✅ Done |
 | 2026-06-04 | SearXNG web search | Shared container | ✅ Done |
 | 2026-06-04 | VS Code `useEnvFile` suppression | Host-level setting | ✅ Done |
-| 2026-06-04 | Firecrawl + Tavily (web extract) | Per-tenant keys | ❌ Needs keys |
-| 2026-06-04 | Spotify integration | Per-tenant app + OAuth | ❌ Needs app + auth |
-| 2026-06-04 | Image generation (FAL) | Per-tenant or shared key | ❌ Needs key |
-| 2026-06-04 | Auxiliary model routing | Config per tenant | ❌ Config only |
+| 2026-06-04 | Firecrawl + Tavily (web extract) | Per-tenant keys | ✅ Done (June 6) |
+| 2026-06-04 | Spotify integration | Per-tenant app + OAuth | ✅ Done (June 6) |
+| 2026-06-04 | Image generation (FAL) | Per-tenant or shared key | ✅ Done (June 6) |
+| 2026-06-04 | Auxiliary model routing | Config per tenant | ✅ Done (June 6) |
 | 2026-06-04 | Fallback provider | — | ⏭ Declined (unnecessary) |
 | 2026-06-04 | BOOT.md startup hook | Per-tenant checklist | ❌ Needs checklist |
 | 2026-06-04 | Custom skin ("stealth") | Per-tenant skin | ❌ Needs skin |
 | 2026-06-04 | SOUL.md personality | Per-tenant personality | ❌ Needs personality |
-| 2026-06-04 | Spotify toolset enable | Per-tenant (inside container) | ❌ Needs enable |
-| 2026-06-04 | Smart approvals | Config per tenant | ❌ Config only |
+| 2026-06-04 | Spotify toolset enable | Per-tenant (inside container) | ✅ Done (June 6) |
+| 2026-06-04 | Smart approvals | Config per tenant | ✅ Done (June 6) |
 | 2026-06-04 | Healthchecks (searxng, ntfy, proxy) | Shared infrastructure | ✅ Done |
 | 2026-06-04 | Healthcheck (litellm) | Shared infrastructure | ✅ Done |
 | 2026-06-04 | `depends_on` startup ordering | Shared compose | ✅ Done |

@@ -1,76 +1,368 @@
 #
-# docker-compose.yml for Hermes Agent
+# docker-compose.yml — Hermes Agent (Multi-tenant)
+#
+# Orchestrates two isolated hermes-agent instances, one for Tim and one for Chrisann.
+# Each instance connects to its own dedicated LiteLLM proxy and Obsidian vault.
 #
 # Usage:
 #   HERMES_UID=$(id -u) HERMES_GID=$(id -g) docker compose up -d
 #
-# Set HERMES_UID / HERMES_GID to the host user that owns ~/.hermes so
-# files created inside the container stay readable/writable on the host.
-# The s6-overlay stage2 hook remaps the internal `hermes` user to these
-# values via usermod/groupmod; each supervised service then drops to that
-# user via `s6-setuidgid`.
+# Prerequisites:
+#   - The LiteLLM proxy stack must be running first:
+#     cd /home/cia-one/dev/litellm && docker compose up -d
+#   - The litellm_default external network must exist (created automatically
+#     by the litellm stack). If it doesn't yet exist, run:
+#     docker network create litellm_default
 #
-# Security notes:
-#   - The dashboard service binds to 127.0.0.1 by default. It stores API
-#     keys; exposing it on LAN without auth is unsafe. If you want remote
-#     access, use an SSH tunnel or put it behind a reverse proxy that
-#     adds authentication — do NOT pass --insecure --host 0.0.0.0.
-#   - If you override entrypoint, keep `/init` as the first command in
-#     the chain (or let docker use the image's default ENTRYPOINT,
-#     which is `["/init", "/opt/hermes/docker/main-wrapper.sh"]`).
-#     `/init` is s6-overlay's PID 1 — it runs the cont-init.d scripts
-#     (chown, profile reconcile, dashboard toggle) and sets up the
-#     supervision tree before any service starts. Bypassing it skips
-#     all of that setup and the gateway will not work correctly.
-#   - The gateway's API server is off unless you uncomment API_SERVER_KEY
-#     and API_SERVER_HOST. See docs/user-guide/api-server.md before doing
-#     this on an internet-facing host.
+# Strict Isolation:
+#   - agent-tim  → only talks to litellm-tim  (port 4001)
+#   - agent-chrisann → only talks to litellm-chrisann (port 4002)
+#   - Each agent has its own HERMES_HOME at ./data/tim/hermes or ./data/chrisann/hermes
+#   - Each agent has its own Obsidian vault (read-only mount)
 #
+
 services:
-  gateway:
+
+  # ─────────────────────────────────────────────────────────────────────────────
+  # TIM'S AGENT (Gateway)
+  # ─────────────────────────────────────────────────────────────────────────────
+  agent-tim:
     build: .
     image: hermes-agent
-    container_name: hermes
+    container_name: hermes-tim
     restart: unless-stopped
-    network_mode: host
-    volumes:
-      - ~/.hermes:/opt/data
-    environment:
-      - HERMES_UID=${HERMES_UID:-10000}
-      - HERMES_GID=${HERMES_GID:-10000}
-      # To expose the OpenAI-compatible API server beyond localhost,
-      # uncomment BOTH lines (API_SERVER_KEY is mandatory for auth):
-      # - API_SERVER_HOST=0.0.0.0
-      # - API_SERVER_KEY=${API_SERVER_KEY}
-      # Microsoft Teams — uncomment and fill in to enable Teams gateway.
-      # Register your bot at https://dev.botframework.com/ to get these values.
-      # - TEAMS_CLIENT_ID=${TEAMS_CLIENT_ID}
-      # - TEAMS_CLIENT_SECRET=${TEAMS_CLIENT_SECRET}
-      # - TEAMS_TENANT_ID=${TEAMS_TENANT_ID}
-      # - TEAMS_ALLOWED_USERS=${TEAMS_ALLOWED_USERS}
-      # - TEAMS_PORT=${TEAMS_PORT:-3978}
-      # Google Chat — uncomment and fill in to enable the Google Chat gateway.
-      # See website/docs/user-guide/messaging/google_chat.md for the full setup.
-      # The SA JSON path must point to a file mounted into the container —
-      # add a volume entry above (e.g. ``- ~/.hermes/google-chat-sa.json:/secrets/google-chat-sa.json:ro``)
-      # then set GOOGLE_CHAT_SERVICE_ACCOUNT_JSON to that mount path.
-      # - GOOGLE_CHAT_PROJECT_ID=${GOOGLE_CHAT_PROJECT_ID}
-      # - GOOGLE_CHAT_SUBSCRIPTION_NAME=${GOOGLE_CHAT_SUBSCRIPTION_NAME}
-      # - GOOGLE_CHAT_SERVICE_ACCOUNT_JSON=${GOOGLE_CHAT_SERVICE_ACCOUNT_JSON}
-      # - GOOGLE_CHAT_ALLOWED_USERS=${GOOGLE_CHAT_ALLOWED_USERS}
-    command: ["gateway", "run"]
-
-  dashboard:
-    image: hermes-agent
-    container_name: hermes-dashboard
-    restart: unless-stopped
-    network_mode: host
+    networks:
+      - litellm_default
     depends_on:
-      - gateway
+      searxng:
+        condition: service_healthy
+      ntfy:
+        condition: service_healthy
     volumes:
-      - ~/.hermes:/opt/data
+      # Tim's isolated HERMES_HOME — all memory, sessions, and config live here
+      - ./data/tim/hermes:/opt/data
+      # Tim's Obsidian vault — read-only access
+      - ./data/tim/obsidian:/opt/data/obsidian
+      - /home/cia-one/dev/obsidian-mcp-server/obsidian-mcp-server:/opt/obsidian-mcp-server:ro
+      # Tim's website — read-write so the agent can edit pages directly
+      # Changes to index.html / style.css are live immediately (no rebuild needed)
+      - /home/cia-one/dev/villagertim-website:/opt/website
+      - ./mcp-servers/litellm-spend:/opt/mcp-servers/litellm-spend:ro
+
+    env_file:
+      - .tim-agent.env
     environment:
-      - HERMES_UID=${HERMES_UID:-10000}
-      - HERMES_GID=${HERMES_GID:-10000}
-    # Localhost-only. For remote access, tunnel via `ssh -L 9119:localhost:9119`.
-    command: ["dashboard", "--host", "127.0.0.1", "--no-open"]
+      - HERMES_UID=${HERMES_UID:-1000}
+      - HERMES_GID=${HERMES_GID:-1000}
+    command: [ "gateway", "run" ]
+    deploy:
+      resources:
+        limits:
+          memory: 1024M
+
+  # ─────────────────────────────────────────────────────────────────────────────
+  # TIM'S AGENT (Dashboard)
+  # ─────────────────────────────────────────────────────────────────────────────
+  agent-tim-dashboard:
+    image: hermes-agent
+    container_name: hermes-tim-dashboard
+    restart: unless-stopped
+    networks:
+      - litellm_default
+    depends_on:
+      agent-tim:
+        condition: service_started
+    volumes:
+      - ./data/tim/hermes:/opt/data
+      - ./data/tim/obsidian:/opt/data/obsidian
+      - /home/cia-one/dev/obsidian-mcp-server/obsidian-mcp-server:/opt/obsidian-mcp-server:ro
+      # Tim's website — read-write so the agent can edit pages directly
+      - /home/cia-one/dev/villagertim-website:/opt/website
+      - ./plugins/litellm-budget:/opt/hermes/plugins/litellm-budget:ro
+    env_file:
+      - .tim-agent.env
+    environment:
+      - HERMES_UID=${HERMES_UID:-1000}
+      - HERMES_GID=${HERMES_GID:-1000}
+      - BUDGET_SCOPE=all
+    secrets:
+      - litellm_master_key
+
+    command: [ "dashboard", "--host", "0.0.0.0", "--port", "9119", "--insecure", "--no-open" ]
+    deploy:
+      resources:
+        limits:
+          memory: 768M
+
+  # ─────────────────────────────────────────────────────────────────────────────
+  # CHRISANN'S AGENT (Gateway)
+  # ─────────────────────────────────────────────────────────────────────────────
+  agent-chrisann:
+    build: .
+    image: hermes-agent
+    container_name: hermes-chrisann
+    restart: unless-stopped
+    networks:
+      - litellm_default
+    depends_on:
+      searxng:
+        condition: service_healthy
+      ntfy:
+        condition: service_healthy
+    volumes:
+      # Chrisann's isolated HERMES_HOME — all memory, sessions, and config live here
+      - ./data/chrisann/hermes:/opt/data
+      # Chrisann's Obsidian vault — read-only access
+      - ./data/chrisann/obsidian:/opt/data/obsidian
+      - /home/cia-one/dev/obsidian-mcp-server/obsidian-mcp-server:/opt/obsidian-mcp-server:ro
+      # Chrisann's website — read-write so the agent can edit pages directly
+      # Changes to index.html / style.css are live immediately (no rebuild needed)
+      - /home/cia-one/dev/villagerchrisann-website:/opt/website
+      - ./mcp-servers/litellm-spend:/opt/mcp-servers/litellm-spend:ro
+
+    env_file:
+      - .chrisann-agent.env
+    environment:
+      - HERMES_UID=${HERMES_UID:-1000}
+      - HERMES_GID=${HERMES_GID:-1000}
+    command: [ "gateway", "run" ]
+    deploy:
+      resources:
+        limits:
+          memory: 1024M
+
+  # ─────────────────────────────────────────────────────────────────────────────
+  # CHRISANN'S AGENT (Dashboard)
+  # ─────────────────────────────────────────────────────────────────────────────
+  agent-chrisann-dashboard:
+    image: hermes-agent
+    container_name: hermes-chrisann-dashboard
+    restart: unless-stopped
+    networks:
+      - litellm_default
+    depends_on:
+      agent-chrisann:
+        condition: service_started
+    volumes:
+      - ./data/chrisann/hermes:/opt/data
+      - ./data/chrisann/obsidian:/opt/data/obsidian
+      - /home/cia-one/dev/obsidian-mcp-server/obsidian-mcp-server:/opt/obsidian-mcp-server:ro
+      # Chrisann's website — read-write so the agent can edit pages directly
+      - /home/cia-one/dev/villagerchrisann-website:/opt/website
+      - ./plugins/litellm-budget:/opt/hermes/plugins/litellm-budget:ro
+    env_file:
+      - .chrisann-agent.env
+    environment:
+      - HERMES_UID=${HERMES_UID:-1000}
+      - HERMES_GID=${HERMES_GID:-1000}
+      - BUDGET_SCOPE=self
+    secrets:
+      - litellm_master_key
+
+    command: [ "dashboard", "--host", "0.0.0.0", "--port", "9119", "--insecure", "--no-open" ]
+    deploy:
+      resources:
+        limits:
+          memory: 768M
+
+  # ─────────────────────────────────────────────────────────────────────────────
+  # TIM'S AGENT (Obsidian Web GUI)
+  # ─────────────────────────────────────────────────────────────────────────────
+  obsidian-gui-tim:
+    image: lscr.io/linuxserver/obsidian:latest
+    container_name: obsidian-gui-tim
+    restart: unless-stopped
+    profiles: [gui]   # Opt-in: docker compose --profile gui up -d
+    networks:
+      - litellm_default
+    environment:
+      - PUID=${HERMES_UID:-1000}
+      - PGID=${HERMES_GID:-1000}
+      - TZ=Etc/UTC
+      - PASSWORD=${OBSIDIAN_PASSWORD_TIM}
+      - CUSTOM_HTTPS_PORT=443
+    volumes:
+      - ./data/tim/obsidian-gui-config:/config
+      - ./data/tim/obsidian:/config/vault
+      - ./selkies-nginx-noauth.conf:/etc/nginx/sites-enabled/default:ro
+    deploy:
+      resources:
+        limits:
+          memory: 512M
+
+  # ─────────────────────────────────────────────────────────────────────────────
+  # CHRISANN'S AGENT (Obsidian Web GUI)
+  # ─────────────────────────────────────────────────────────────────────────────
+  obsidian-gui-chrisann:
+    image: lscr.io/linuxserver/obsidian:latest
+    container_name: obsidian-gui-chrisann
+    restart: unless-stopped
+    profiles: [gui]   # Opt-in: docker compose --profile gui up -d
+    networks:
+      - litellm_default
+    environment:
+      - PUID=${HERMES_UID:-1000}
+      - PGID=${HERMES_GID:-1000}
+      - TZ=Etc/UTC
+      - PASSWORD=${OBSIDIAN_PASSWORD_CHRISANN}
+      - CUSTOM_HTTPS_PORT=443
+    volumes:
+      - ./data/chrisann/obsidian-gui-config:/config
+      - ./data/chrisann/obsidian:/config/vault
+      - ./selkies-nginx-noauth.conf:/etc/nginx/sites-enabled/default:ro
+    deploy:
+      resources:
+        limits:
+          memory: 512M
+
+  # ─────────────────────────────────────────────────────────────────────────────
+  # TIM'S AGENT (n8n)
+  # ─────────────────────────────────────────────────────────────────────────────
+  n8n-tim:
+    image: docker.n8n.io/n8nio/n8n:latest
+    container_name: n8n-tim
+    restart: unless-stopped
+    networks:
+      - litellm_default
+    volumes:
+      - ./data/tim/n8n_data:/home/node/.n8n
+    deploy:
+      resources:
+        limits:
+          memory: 512M
+
+  # ─────────────────────────────────────────────────────────────────────────────
+  # CHRISANN'S AGENT (n8n)
+  # ─────────────────────────────────────────────────────────────────────────────
+  n8n-chrisann:
+    image: docker.n8n.io/n8nio/n8n:latest
+    container_name: n8n-chrisann
+    restart: unless-stopped
+    networks:
+      - litellm_default
+    volumes:
+      - ./data/chrisann/n8n_data:/home/node/.n8n
+    deploy:
+      resources:
+        limits:
+          memory: 512M
+
+
+  # ─────────────────────────────────────────────────────────────────────────────
+  # SEARXNG — Self-Hosted Web Search (Shared)
+  # Privacy-respecting metasearch engine aggregating Google, Bing, DuckDuckGo,
+  # Brave, and more. Shared by both agents — no user data, just search queries.
+  # JSON format is pre-enabled in settings.yml (required by hermes-agent).
+  # ─────────────────────────────────────────────────────────────────────────────
+  searxng:
+    image: searxng/searxng:latest
+    container_name: searxng
+    restart: unless-stopped
+    networks:
+      - litellm_default
+    volumes:
+      - ./data/searxng:/etc/searxng:rw
+    environment:
+      - SEARXNG_BASE_URL=http://searxng:8080/
+    healthcheck:
+      test: ["CMD", "wget", "-q", "--spider", "http://localhost:8080/healthz"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+      start_period: 10s
+    deploy:
+      resources:
+        limits:
+          memory: 256M
+
+  # ─────────────────────────────────────────────────────────────────────────────
+  # REVERSE PROXY (Nginx)
+  # ─────────────────────────────────────────────────────────────────────────────
+  proxy:
+    image: nginx:alpine
+    container_name: hermes-proxy
+    restart: unless-stopped
+    networks:
+      - litellm_default
+    ports:
+      - "80:80"
+      - "443:443"
+    volumes:
+      - ./nginx.conf:/etc/nginx/nginx.conf:ro
+      - ./.htpasswd-tim:/etc/nginx/.htpasswd-tim:ro
+      - ./.htpasswd-chrisann:/etc/nginx/.htpasswd-chrisann:ro
+    healthcheck:
+      test: ["CMD", "curl", "-sf", "http://localhost:80/"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+      start_period: 5s
+    deploy:
+      resources:
+        limits:
+          memory: 64M
+
+  # ─────────────────────────────────────────────────────────────────────────────
+  # NTFY — Self-Hosted Push Notifications
+  # Topics:  hermes-tim      → Tim's agent notifications
+  #          hermes-chrisann → Chrisann's agent notifications
+  # iOS app: install 'ntfy' from App Store, subscribe to:
+  #          https://ntfy.villagertim.com/hermes-tim
+  #          https://ntfy.villagertim.com/hermes-chrisann
+  # Agent usage:
+  #   curl -d "Message here" https://ntfy.villagertim.com/hermes-tim
+  #   curl -d "Message here" http://ntfy/hermes-tim  (internal, faster)
+  # ─────────────────────────────────────────────────────────────────────────────
+  ntfy:
+    image: binwiederhier/ntfy
+    container_name: ntfy
+    command: serve
+    environment:
+      - NTFY_BASE_URL=https://ntfy.villagertim.com
+      - NTFY_CACHE_FILE=/var/lib/ntfy/cache.db
+      - NTFY_AUTH_FILE=/var/lib/ntfy/user.db
+      - NTFY_AUTH_DEFAULT_ACCESS=deny-all
+      - NTFY_BEHIND_PROXY=true
+      # Required for iOS push notifications on self-hosted servers.
+      # Relays APNs wake-up signals through ntfy.sh (no account needed).
+      - NTFY_UPSTREAM_BASE_URL=https://ntfy.sh
+      - TZ=America/New_York
+    volumes:
+      - ./data/ntfy:/var/lib/ntfy
+    restart: unless-stopped
+    networks:
+      - litellm_default
+    healthcheck:
+      test: ["CMD", "wget", "-q", "--spider", "http://localhost:80/v1/health"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+      start_period: 5s
+    deploy:
+      resources:
+        limits:
+          memory: 128M
+
+  # ─────────────────────────────────────────────────────────────────────────────
+  # CLOUDFLARE TUNNEL
+  # ─────────────────────────────────────────────────────────────────────────────
+  cloudflare-tunnel:
+    image: cloudflare/cloudflared:latest
+    container_name: cloudflare-tunnel
+    restart: unless-stopped
+    networks:
+      - litellm_default
+    command: tunnel --no-autoupdate run --token ${CLOUDFLARE_TUNNEL_TOKEN}
+    deploy:
+      resources:
+        limits:
+          memory: 128M
+
+networks:
+  litellm_default:
+    external: true
+
+secrets:
+  litellm_master_key:
+    file: ./secrets/litellm_master_key
+

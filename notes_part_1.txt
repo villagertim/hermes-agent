@@ -1,0 +1,1200 @@
+Getting your digital life in order can feel incredibly daunting, but breaking it down into distinct, manageable zones makes a massive difference. When everything is scattered across cloud accounts, local drives, and buried in unread emails, it drains your mental bandwidth.
+Let’s look at a structured framework to tackle this step-by-step. You don't have to do all of this in a weekend—pick one zone to focus on first.
+1. The Security Foundation (Do This First)
+Before organizing files, make sure your digital front door is locked.
+Audit Your Passwords: Move away from reused passwords or browser-saved credentials. Transition to a dedicated password manager (like Bitwarden, 1Password, or Proton Pass).
+Turn on 2FA: Enable Two-Factor Authentication on your absolute core accounts: email, financial institutions, and primary cloud providers. Use an authenticator app (like Aegis or Google Authenticator) rather than SMS where possible.
+The "De-Clutter" Email: Search for the word "unsubscribe" in your inbox. Spend 15 minutes ruthlessly cutting out newsletters, notifications, and promo emails you haven't opened in six months.
+2. Infrastructure & Local Storage
+If you manage high-performance hardware, local code, or project backups, a clean environment keeps things running efficiently.
+Prune Docker & Local Environments: Run a system prune on Docker container volumes you aren't actively using. Consolidate your API routing keys and configuration files into a centralized, secure environment variable file (like a single .env template) instead of letting them scatter across individual project folders.
+Archive Completed Projects: Move older, inactive project directories, assets, or heavy local files off your primary machine's drive and onto an external archival drive or local network storage. Keep your main drive lean.
+3. Digital Asset & File Organization
+A messy desktop or a chaotic "Downloads" folder slows down your workflow.
+The "Inbox" Method: Create a single folder on your desktop called 0_Inbox. If you don't know where a file goes immediately, drop it there. Empty it once a week.
+Standardize Your Naming Conventions: Pick a format for your files and stick to it. A structured format like YYYY-MM-DD_ProjectName_Description (e.g., 2026-05-30_ShopManual_Draft.pdf) ensures that files sort chronologically automatically, making them incredibly easy to find via search.
+Separate Reference from Action: Keep "Active Projects" in a highly accessible cloud folder (or local directory), and move "Reference Docs" (manuals, historical receipts, completed designs) into a deeply nested, read-only archive.
+4. Digital Legacy & Peace of Mind
+Getting organized is also about making sure your digital life is secure for the future.
+Set Up Emergency Access: Most major account ecosystems (Google, Apple) have an "Inactive Account Manager" or "Legacy Contact" feature. Set this up so a trusted family member can securely access your digital assets if you are ever incapacitated.
+The "Master Document": Create an offline, encrypted, or physically locked document detailing where your major assets live (which cloud services you use, where local backups are stored, and how to access your password manager master key).
+Which area feels like the most urgent bottleneck for you right now? Is it sorting through local files and project clutter, securing accounts, or getting a handle on cloud storage?
+Tying together a custom domain, a Google identity, a home server running Docker, and an iPhone is an incredibly satisfying project. Because your server lives at home behind your residential internet router, the core challenge is secure exposure: allowing your iPhone and external services to communicate with your home containers securely without exposing your home network to the entire internet.
+Here is the blueprint for how these pieces fit together seamlessly.
+The Master Architecture
+To get an idea of how data moves between your iPhone, your domain, and your house, here is how the traffic flows:
+[iPhone / External] ──> [villagertim.com (Squarespace)]
+│
+▼ (Secure Proxy Tunnel)
+[Cloudflare / Tailscale]
+│
+▼ (Inbound Home Router)
+[Home Server (Docker)]
+│
+┌───────────────────────┼───────────────────────┐
+▼ ▼ ▼
+[Hermes Agent] [Nginx Reverse Proxy] [Other Containers]
+Step 1: Handle Your Domain & DNS (Squarespace)
+Your Squarespace domain (villagertim.com) will act as the traffic controller for your services (e.g., hermes.villagertim.com, nextcloud.villagertim.com).
+Because home internet connections usually have a Dynamic IP address (meaning your ISP changes your home's IP address every few weeks), you shouldn't just point your domain directly to your home IP. Instead, use one of two methods:
+Option A: Cloudflare Tunnels (Recommended & Safest). Point your Squarespace custom DNS nameservers to Cloudflare (it's free). You then run a small Docker container on your home server called cloudflared. This container creates a secure, encrypted outbound connection to Cloudflare. You don't have to open any ports on your home router, and your home IP stays hidden.
+Option B: Dynamic DNS (DDNS). If you prefer a traditional setup, you can use a Docker container like oznu/cloudflare-ddns or a native Squarespace API script that constantly updates your domain's DNS records whenever your ISP changes your home IP. Note: This requires opening ports 80 and 443 on your router.
+Step 2: Set Up the Home Server & Reverse Proxy
+On your home server, you will want a "traffic cop" container that looks at incoming traffic for villagertim.com and routes it to the correct Docker container.
+Install Docker & Docker Compose. This is your foundation.
+Deploy a Reverse Proxy. Spin up a container like Nginx Proxy Manager or Traefik.
+This container automatically handles SSL certificates (HTTPS via Let's Encrypt) so everything is encrypted.
+If someone requests hermes.villagertim.com, the reverse proxy routes that traffic internally to your Hermes container on port 8080 (or whatever port it uses).
+Step 3: Deploy Hermes-Agent & Tie in Google
+Because Hermes-Agent is built by Nous Research to act as an autonomous, always-on assistant with persistent memory, it needs a way to talk to you and access your data.
+Docker Deployment: You'll run Hermes-Agent in a container. Ensure its data directory is mapped to a persistent directory on your host machine (e.g., -v ~/.hermes:/opt/data) so its learned skills and memories survive container updates.
+The Messaging Gateway: Hermes-Agent shines when you interact with it where you already hang out. Since you are on an iPhone, the absolute best way to interface with it is via Telegram or Signal.
+You create a private bot via Telegram's BotFather, lock the bot down so only your specific user ID can message it, and input that token into your Hermes .env file. Now, you can text your home server from your iPhone lock screen.
+Integrating Google (villagertim@gmail.com): Hermes supports OAuth integration or service accounts. You can grant your self-hosted Hermes agent access to read/write to your Google Calendar or Google Chat, turning it into an active coordinator for your digital life.
+Step 4: The iPhone Mobile Presence (Your Control Center)
+To manage and interact with this ecosystem from your iPhone, you'll want three core apps:
+Tailscale (For Admin Access): If you don't want to expose an application's web interface to the public internet via your domain, install Tailscale on your server and iPhone. It creates a private, zero-configuration mesh VPN. When turned on, you can type your server's private IP into Safari on your iPhone and access things like your Docker dashboard (Portainer) securely from anywhere in the world.
+Telegram / Signal: Your primary conversational UI for instructing your Hermes-Agent to run automations, write scripts, or check system health.
+Apple Shortcuts: You can build native iOS Shortcuts that send Webhook API requests to your home server's reverse proxy, allowing you to trigger home automations or Docker actions using iOS widgets or Siri.
+To get started, what hardware are you planning to use for the home server (e.g., an old PC, a Mini PC, a Raspberry Pi), and do you already have a preference for how you want to handle remote access (Cloudflare vs. a private VPN like Tailscale)?
+That is an excellent set of specs for a home server. An Intel i7 with 12 cores and 32GB of RAM gives you plenty of processing power and memory headroom to run Docker, a reverse proxy, your development workflows, and hermes-agent simultaneously without breaking a sweat. Plus, a 1 Gbps internet connection means you won't face any bandwidth bottlenecks when accessing your services remotely.
+Since you are running an All-in-One (AIO) PC, the internal storage is likely a single 2TB NVMe SSD. While fast, you'll want to protect your data since home servers write a lot of log files and container data over time.
+Here is how to architect this specific machine into your ultimate Docker host.
+1. Operating System & Docker Storage Layout
+To get the most performance and stability out of that 12-core CPU, pass on Windows and install a headless Linux distribution.
+The OS: Ubuntu Server 24.04 LTS or Debian 12. They are lightweight, stable, and have the best community support for Docker.
+The Directory Structure: Keep your host system organized so backups are a breeze. Dedicate a single top-level directory for your Docker ecosystem:
+Plaintext
+/opt/docker/
+├── compose-files/ # Stores your docker-compose.yml files
+│ ├── proxy/
+│ └── hermes/
+└── container-data/ # Persistent volumes mapped to your containers
+├── nginx-proxy-manager/
+└── hermes-data/
+By keeping all container data in /opt/docker/container-data/, you only have to back up that single folder to protect your entire server's configuration and persistent memory.
+2. Remote Access Choice: The Cloudflare Tunnel Stack
+Given your setup, using a Cloudflare Tunnel (cloudflared) is the cleanest way to connect villagertim.com to your AIO server. It avoids port-forwarding on your home router entirely.
+Here is how the configuration files stack up using Docker Compose:
+The Reverse Proxy & Tunnel Stack
+You can combine your reverse proxy (Nginx Proxy Manager) and the Cloudflare connector into a single network stack. Create a folder at /opt/docker/compose-files/proxy/ and drop this docker-compose.yml inside:
+YAML
+version: '3.8'
+services:
+# The Reverse Proxy that routes traffic internally
+npm:
+image: 'jc21/nginx-proxy-manager:latest'
+container_name: nginx-proxy-manager
+restart: unless-stopped
+ports:
+- '80:80' # HTTP Traffic
+- '443:443' # HTTPS Traffic
+- '81:81' # Admin Web GUI Dashboard
+volumes:
+- /opt/docker/container-data/npm/data:/data
+- /opt/docker/container-data/npm/letsencrypt:/etc/letsencrypt
+networks:
+- proxy-tier
+# The secure outbound tunnel to Cloudflare
+tunnel:
+image: cloudflare/cloudflared:latest
+container_name: cloudflare-tunnel
+restart: unless-stopped
+command: tunnel --no-autoupdate run --token YOUR_CLOUDFLARE_TUNNEL_TOKEN
+networks:
+- proxy-tier
+networks:
+proxy-tier:
+name: proxy-tier
+3. Deploying Hermes-Agent
+With your proxy tier ready, you can deploy hermes-agent. Because it’s running on a 12-core i7, it can handle intensive agentic tasks, though for heavy LLM inference, you will likely want it routing API calls out to external providers (or a separate local machine with a dedicated GPU if you build one later).
+Create a folder at /opt/docker/compose-files/hermes/:
+YAML
+version: '3.8'
+services:
+hermes-agent:
+image: nousresearch/hermes-agent:latest # Replace with the specific image tag you are tracking
+container_name: hermes-agent
+restart: unless-stopped
+environment:
+- GOOGLE_CLIENT_ID=${GOOGLE_CLIENT_ID}
+- GOOGLE_CLIENT_SECRET=${GOOGLE_CLIENT_SECRET}
+- TELEGRAM_BOT_TOKEN=${TELEGRAM_BOT_TOKEN}
+- ALLOWED_USER_IDS=${YOUR_TELEGRAM_ID}
+volumes:
+- /opt/docker/container-data/hermes:/opt/agent/data
+networks:
+- proxy-tier
+4. Tying in the iPhone Dashboard
+To monitor this hardware from your iPhone without exposing your administrative control panels to the public web, install Tailscale on the server alongside Docker.
+For Public Services (hermes.villagertim.com): Traffic goes iPhone ──> Cloudflare ──> Cloudflare Tunnel Container ──> Nginx Proxy Manager ──> Hermes Container.
+For Private Admin Panels (Nginx Dashboard on Port 81, or Portainer): Leave these completely blocked from the internet. When you want to check on them from your iPhone, flip on the Tailscale VPN app on your phone, and navigate directly to your server’s secure internal Tailscale IP (e.g., http://100.x.x.x:81).
+Your Immediate Next Steps
+Flash the OS: Download Ubuntu Server 24.04 LTS and flash it to a USB drive using Rufus or BalenaEtcher. Install it on the AIO PC.
+Point your DNS: Log into Squarespace and change your domain's nameservers to point to a free Cloudflare account.
+Create the Tunnel: In the Cloudflare Dashboard, go to Zero Trust -> Networks -> Tunnels, create a named tunnel for your home server, and grab the token for your Docker Compose file.
+Would you like to drill down into setting up the Google API credentials for villagertim@gmail.com so your agent can interact with your Google environment, or focus on getting the base Linux server and Docker engine configured first?
+Running a dual-tenant setup for you and your wife is a brilliant way to handle things. Because hermes-agent builds a deeply personalized user profile, tracks unique memories, and curates its own skill libraries over time, keeping your instances completely separated is critical. Running two distinct containers ensures your data, automations, and memories never bleed into hers (and vice-versa).
+A warning from the official Nous Research documentation states:
+"Never run two Hermes gateway containers against the same data directory simultaneously — session files and memory stores are not designed for concurrent write access."
+To accomplish this smoothly, we will isolate their respective storage directories and utilize Nginx Proxy Manager to route traffic from your respective subdomains cleanly to the correct container.
+1. Directory Architecture
+To keep things perfectly organized on your 2TB SSD, expand your folder structure to explicitly separate the data for both domains:
+Plaintext
+/opt/docker/
+├── compose-files/
+│ ├── proxy/
+│ │ └── docker-compose.yml
+│ ├── hermes-tim/
+│ │ └── docker-compose.yml
+│ └── hermes-chrisann/
+│ └── docker-compose.yml
+└── container-data/
+├── npm/ # Nginx Proxy Manager data & SSL certs
+├── cloudflare/ # Tunnel credentials
+├── hermes-tim-data/ # Your persistent memory, skills, & config
+└── hermes-chrisann-data/ # Chrisann's persistent memory, skills, & config
+2. The Multi-Tenant Docker Setup
+Instead of trying to jam everything into one massive file, split your stacks. This allows you to update or restart your agent without interrupting your wife's agent.
+The Network & Proxy Stack (/opt/docker/compose-files/proxy/docker-compose.yml)
+Both of your custom domains can route through a single proxy tier. You can establish either two separate tunnels or route multiple subdomains through one master Cloudflare account. We will create an external Docker network called proxy-tier so all containers can talk to the proxy.
+YAML
+version: '3.8'
+services:
+npm:
+image: 'jc21/nginx-proxy-manager:latest'
+container_name: nginx-proxy-manager
+restart: unless-stopped
+ports:
+- '80:80'
+- '443:443'
+- '81:81'
+volumes:
+- /opt/docker/container-data/npm/data:/data
+- /opt/docker/container-data/npm/letsencrypt:/etc/letsencrypt
+networks:
+- proxy-tier
+tunnel:
+image: cloudflare/cloudflared:latest
+container_name: cloudflare-tunnel
+restart: unless-stopped
+command: tunnel --no-autoupdate run --token YOUR_CLOUDFLARE_MASTER_TOKEN
+networks:
+- proxy-tier
+networks:
+proxy-tier:
+name: proxy-tier
+Your Instance (/opt/docker/compose-files/hermes-tim/docker-compose.yml)
+Your instance will bind to your subfolder, use your Google credentials, and lock down its Telegram/Signal gateway communication exclusively to your personal chat ID.
+YAML
+version: '3.8'
+services:
+hermes-tim:
+image: nousresearch/hermes-agent:latest
+container_name: hermes-tim
+restart: unless-stopped
+environment:
+- GOOGLE_CLIENT_ID=${TIM_GOOGLE_CLIENT_ID}
+- GOOGLE_CLIENT_SECRET=${TIM_GOOGLE_CLIENT_SECRET}
+- TELEGRAM_BOT_TOKEN=${TIM_TELEGRAM_BOT_TOKEN}
+- ALLOWED_USER_IDS=${TIM_TELEGRAM_CHAT_ID}
+- HERMES_DASHBOARD=1
+volumes:
+- /opt/docker/container-data/hermes-tim-data:/opt/data
+networks:
+- proxy-tier
+ports:
+- "8081:8000" # Exposes your dashboard API layer internally on host port 8081
+Chrisann's Instance (/opt/docker/compose-files/hermes-chrisann/docker-compose.yml)
+Her instance will run entirely independently, mapping to her distinct domain, data directory, and messaging tokens.
+YAML
+version: '3.8'
+services:
+hermes-chrisann:
+image: nousresearch/hermes-agent:latest
+container_name: hermes-chrisann
+restart: unless-stopped
+environment:
+- GOOGLE_CLIENT_ID=${CHRISANN_GOOGLE_CLIENT_ID}
+- GOOGLE_CLIENT_SECRET=${CHRISANN_GOOGLE_CLIENT_SECRET}
+- TELEGRAM_BOT_TOKEN=${CHRISANN_TELEGRAM_BOT_TOKEN}
+- ALLOWED_USER_IDS=${CHRISANN_TELEGRAM_CHAT_ID}
+- HERMES_DASHBOARD=1
+volumes:
+- /opt/docker/container-data/hermes-chrisann-data:/opt/data
+networks:
+- proxy-tier
+ports:
+- "8082:8000" # Exposes her dashboard API layer internally on host port 8082
+3. Routing Traffic via Nginx Proxy Manager
+Once the containers are running, you will log into your Nginx Proxy Manager web interface (accessible via your local network or Tailscale at http://your-server-ip:81) to handle the incoming subdomains.
+Because all three setups share the proxy-tier Docker network, Nginx can route traffic using the container names directly rather than tracking changing IP addresses. You will add two Proxy Hosts:
+Domain Name
+Scheme
+Forward Hostname / IP
+Forward Port
+WebSockets Support
+agent.villagertim.com
+http
+hermes-tim
+8000
+Enabled (Required for chat)
+agent.villagerchrisann.com
+http
+hermes-chrisann
+8000
+Enabled (Required for chat)
+(Note: In the SSL tab for each host, you will request a new Let's Encrypt SSL certificate and turn on "Force SSL" so all mobile traffic from your iPhones is fully encrypted end-to-end).
+4. Configuring the Mobile Presence for Two
+Now that the backend is separated, here is how you both interface with your respective environments on your iPhones:
+The Conversational Interface: You will create two separate bots on Telegram via @BotFather (e.g., VillagerTimBot and VillagerChrisannBot). You message your bot, she messages hers. The containers will independently process your files, write your separate code sandboxes, and run your automated background tasks completely out of sight of each other.
+The Web Dashboard: When you want to look at your agent's skills, workflows, or logs visually on a browser, you can pull up the web app. If you are away from home, you can access your dashboard securely via Tailscale at [http://100.](http://100.)x.x.x:8081 while she can access hers at [http://100.](http://100.)x.x.x:8082.
+Since we are doing a dual setup, setting up the cloud credentials correctly matters. Would you like to tackle generating the distinct Telegram Bot tokens first, or jump into setting up the Google Cloud Console projects so both agents can interact with your respective Google accounts?
+Integrating two separate Obsidian vaults into this setup—especially with iPhones as your primary mobile devices—adds a layer of complexity because of how iOS sandboxes files. On an iPhone, apps cannot easily view or modify folders belonging to other apps unless they are specifically synced through a compatible protocol.
+To sync two separate vaults smoothly from your home server to your respective iPhones, you have two excellent open-source approaches.
+The Synchronization Options
+Option A: Self-Hosted Obsidian Sync via CouchDB (Recommended)
+Obsidian natively relies on a database framework called CouchDB under the hood for its official Sync service. By running a community-supported CouchDB container on your server, you can mimic the official backend entirely.
+How it works on mobile: You install a community plugin in Obsidian called Remotely Save or Self-Hosted LiveSync. The plugin syncs your markdown files from the phone directly into your server's database via your custom subdomains.
+The Big Advantage: It bypasses iOS file system limitations completely. It syncs lightning fast directly inside the native Obsidian app over HTTPS, without needing external file managers.
+Option B: Self-Hosted Nextcloud / WebDAV
+You can spin up a Nextcloud or a lightweight WebDAV container on your Docker host.
+How it works on mobile: You use the Remotely Save plugin inside iOS Obsidian, pointing it directly to your server's WebDAV URL (e.g., vault.villagertim.com).
+The Big Advantage: Your vaults are stored simply as plain-text folder directories on your 2TB SSD, making them immediately viewable by other home server tools or text editors.
+Updating the Architecture
+To support the CouchDB approach (Option A), we will expand your existing storage structure and Docker layout. CouchDB can handle multiple separate databases simultaneously, meaning you only need one database container to run both of your isolated vaults securely.
+Updated Folders
+Plaintext
+/opt/docker/
+├── compose-files/
+│ ├── proxy/
+│ ├── hermes-tim/
+│ ├── hermes-chrisann/
+│ └── obsidian-sync/ # New stack folder
+│ └── docker-compose.yml
+└── container-data/
+├── npm/
+├── cloudflare/
+├── hermes-tim-data/
+├── hermes-chrisann-data/
+└── couchdb-data/ # Stores both encrypted vault databases
+The Database Stack (/opt/docker/compose-files/obsidian-sync/docker-compose.yml)
+Drop this service stack into your new directory. It sets up the database backend and hooks it straight into your shared reverse proxy network.
+YAML
+version: '3.8'
+services:
+couchdb:
+image: couchdb:3.3
+container_name: obsidian-couchdb
+restart: unless-stopped
+environment:
+- COUCHDB_USER=admin_user # Change this to a secure admin name
+- COUCHDB_PASSWORD=secure_pass # Change this to a strong password
+volumes:
+- /opt/docker/container-data/couchdb-data:/opt/couchdb/data
+networks:
+- proxy-tier
+Routing the Vault Traffic
+Once the container is spun up, you will open your Nginx Proxy Manager dashboard to point your new subdomains to the single CouchDB container on port 5984.
+You will create two separate proxy hosts to give each vault its own frontend, ensuring your endpoints match your respective domains:
+Domain Name
+Scheme
+Forward Hostname
+Forward Port
+WebSockets Support
+sync.villagertim.com
+http
+obsidian-couchdb
+5984
+Enabled
+sync.villagerchrisann.com
+http
+obsidian-couchdb
+5984
+Enabled
+iPhone & Tenant Isolation Setup
+To ensure total privacy between your digital brains, you will create two completely distinct databases inside the CouchDB panel (accessible at http://your-server-ip:5984/_utils via Tailscale):
+Log in with your master admin credentials.
+Create a database named tim_vault.
+Create a separate database named chrisann_vault.
+(Optional but recommended): Set up unique non-admin user credentials inside CouchDB for each database so your iPhone plugin cannot authenticate into her database layout and vice versa.
+On Your iPhones:
+Open Obsidian on your iPhone and create a brand new, empty vault.
+Go to Community Plugins, search for Self-Hosted LiveSync (or Remotely Save), and install it.
+In the plugin settings, input your respective subdomains:
+Your phone: [https://sync.villagertim.com/tim_vault](https://sync.villagertim.com/tim_vault)
+Her phone: [https://sync.villagerchrisann.com/chrisann_vault](https://sync.villagerchrisann.com/chrisann_vault)
+Turn on "Sync on Startup." Your notes will now seamlessly upload and download in the background straight to your AIO home server whenever you open the app on your phone.
+Would you like to explore setting up this CouchDB data stack alongside the base server configuration, or focus first on getting the home network's domain tunnels solid?
+Looking at your container list, you’ve already done some fantastic groundwork here. You have cleanly separated environments for both of you across the board, which is exactly the right play for a dual-tenant setup.
+However, taking a close look at your Portainer/Docker dashboard, there are a few immediate operational bottlenecks, structural duplicates, and routing details we need to clean up so your Squarespace domains, iPhones, and services play nice together.
+1. The Duplicate "Hermes" Container Issue (Action Required)
+If you look closely at your running containers, you have duplicates spinning up for both instances:
+Two hermes-chris containers (54da96ee5477 and 1a9d12195e7b)
+Two hermes-tim containers (bc33b42cc722 and c7a1172e8b81 cut off as -d)
+Why this is a problem: If these duplicate pairs are mapping to the exact same persistent data folders on your 2TB SSD, they will corrupt each other's databases, memory logs, and local AI workspace histories.
+The Fix:
+Stop the duplicates. You only want one active container for hermes-tim and one active container for hermes-chris.
+Check your Compose files to see if you accidentally ran docker compose up in two different directories, or if you left detached (-d) orphan containers running from an older configuration attempt.
+2. Integrating Your Obsidian GUI Containers
+You are running two obsidian-gui containers (likely the linuxserver/obsidian image). This is a smart choice for an AIO server because it serves up a full desktop version of Obsidian via a web browser (using KasmVNC/novnc).
+To bridge these to your iPhones and domains:
+For the iPhones: You won't actually sync your mobile phone apps directly to these GUI containers. Instead, these GUI containers will read raw markdown files stored locally on your server's SSD.
+The Sync Layer: To get those same files onto your iPhones, we need to map the volume storage of these two GUI containers to a sync engine (like CouchDB or Git/Remotely Save) so that when you edit a note on your phone, it instantly pops up on your server's Obsidian GUI screen, and vice versa.
+3. Harnessing the Power of n8n
+You've spun up n8n-tim and n8n-chrisann. This is the perfect automation engine to tie your digital presence together.
+For your iPhone: You can use the iOS Shortcuts app to trigger custom Webhooks sent directly to your respective n8n container. For example: a shortcut on your iPhone screen called "Log Idea" can instantly pass text to your n8n webhook, which then formats it and drops it straight into your Obsidian vault directory or hands it off to your Hermes Agent.
+For Google Identity: Your n8n instances can handle OAuth connections to villagertim@gmail.com much more easily than raw terminal scripts, letting you automate calendar events, emails, and file management based on your workflows.
+4. The Bridge: hermes-proxy
+You have a container named hermes-proxy running an Alpine Nginx image exposing internal port 9119.
+To connect your two Squarespace domains (villagertim.com and villagerchrisann.com) down to this machine via Cloudflare Tunnels, this proxy needs to know exactly where to send traffic based on the incoming domain request.
+The Routing Checklist
+To tie this exact dashboard together with your domains and iPhones, your hermes-proxy (or an updated Nginx Proxy Manager container) needs to route incoming web traffic using the exact container names from your image:
+Incoming Subdomain
+Routes Internally To
+Internal Port
+What it does for you
+agent.villagertim.com
+hermes-tim
+8000
+Connects your iPhone chat/dashboard to your agent.
+agent.villagerchrisann.com
+hermes-chris
+8000
+Connects your wife's iPhone chat/dashboard to her agent.
+notes.villagertim.com
+obsidian-gui-tim
+3000
+Lets you view your full Obsidian vault in a browser anywhere.
+notes.villagerchrisann.com
+obsidian-gui-chris
+3000
+Lets her view her full Obsidian vault in a browser anywhere.
+automate.villagertim.com
+n8n-tim
+5678
+Handles your personal webhooks, iOS shortcuts, and Google integrations.
+automate.villagerchrisann.com
+n8n-chrisann
+5678
+Handles her personal webhooks and automation paths.
+To make sure your server configuration is rock solid before pointing the domains at it, are your current containers managed via separate Docker Compose files, or did you deploy them individually using Portainer's web UI?
+New chat
+Search chats
+Daily brief
+Images
+New
+Videos
+New
+Library
+Gems
+New notebook
+LightBurn Documentation and User Guide
+CNC Software and Business Insights
+All notebooks
+Organize Your Digital Life Systematically
+Gemini's New Google I/O Features
+A1466 MacBook Air SSD Upgrade Compatibility
+Ubuntu 24.04 Drive Formatting Guide
+Cursor's Model Flexibility Explained
+Agentic AI Platform Peer Review
+The Happy Song's Creation
+Antigravity vs. M5 Chip Capabilities
+Modern Email Dev Tools
+Cursor vs. Windsurf for Club System
+Villages Salad Recommendations
+Villages Salad Restaurant Search
+Specs
+Arc B70 vs. Apple M5 LLM Performance
+Qwen2.5-Coder for Antigravity Effectiveness
+World's Wood Species Diversity Explained
+The Design Commons. A photorealistic rendering of the 500 sq ft entrance. The space features 15-foot ceilings, polished concrete floors, and a 'Member Gallery Wall' showcasing intricate woodwork and 3D-printed designs. Large internal glass partitions offer a view into a bright, clean precision cutting lab. The atmosphere is sophisticated and modern, with professional LED lighting.
+Kimi Code vs. Google Antigravity
+Server Capacity for i7/32GB RAM
+Creating Synthetic Website Load
+Makerspace Design Consultation
+Finding and Managing Antigravity Skills
+Connecting Machines with Tailscale
+USA Street Name Database Resources
+M-Series Mac for AMD64 Development
+VWC Education Program Master Requirements
+Stakeholder Gem: Education Requirements Document
+Qwen 3.6: MoE vs. Dense Models
+Best Local Coding LLMs 2026
+Identifying Spalted Maple Wood
+The Villages Fishing Charters Guide
+RTX 5090: Blackwell Architecture Revealed
+TCL 50Q51K TV Specs Inquiry
+Conversation with Gemini
+i need to get my digital life / presence in order
+Getting your digital life in order can feel incredibly daunting, but breaking it down into distinct, manageable zones makes a massive difference. When everything is scattered across cloud accounts, local drives, and buried in unread emails, it drains your mental bandwidth.
+Let’s look at a structured framework to tackle this step-by-step. You don't have to do all of this in a weekend—pick one zone to focus on first.
+1. The Security Foundation (Do This First)
+Before organizing files, make sure your digital front door is locked.
+Audit Your Passwords: Move away from reused passwords or browser-saved credentials. Transition to a dedicated password manager (like Bitwarden, 1Password, or Proton Pass).
+Turn on 2FA: Enable Two-Factor Authentication on your absolute core accounts: email, financial institutions, and primary cloud providers. Use an authenticator app (like Aegis or Google Authenticator) rather than SMS where possible.
+The "De-Clutter" Email: Search for the word "unsubscribe" in your inbox. Spend 15 minutes ruthlessly cutting out newsletters, notifications, and promo emails you haven't opened in six months.
+2. Infrastructure & Local Storage
+If you manage high-performance hardware, local code, or project backups, a clean environment keeps things running efficiently.
+Prune Docker & Local Environments: Run a system prune on Docker container volumes you aren't actively using. Consolidate your API routing keys and configuration files into a centralized, secure environment variable file (like a single .env template) instead of letting them scatter across individual project folders.
+Archive Completed Projects: Move older, inactive project directories, assets, or heavy local files off your primary machine's drive and onto an external archival drive or local network storage. Keep your main drive lean.
+3. Digital Asset & File Organization
+A messy desktop or a chaotic "Downloads" folder slows down your workflow.
+The "Inbox" Method: Create a single folder on your desktop called 0_Inbox. If you don't know where a file goes immediately, drop it there. Empty it once a week.
+Standardize Your Naming Conventions: Pick a format for your files and stick to it. A structured format like YYYY-MM-DD_ProjectName_Description (e.g., 2026-05-30_ShopManual_Draft.pdf) ensures that files sort chronologically automatically, making them incredibly easy to find via search.
+Separate Reference from Action: Keep "Active Projects" in a highly accessible cloud folder (or local directory), and move "Reference Docs" (manuals, historical receipts, completed designs) into a deeply nested, read-only archive.
+4. Digital Legacy & Peace of Mind
+Getting organized is also about making sure your digital life is secure for the future.
+Set Up Emergency Access: Most major account ecosystems (Google, Apple) have an "Inactive Account Manager" or "Legacy Contact" feature. Set this up so a trusted family member can securely access your digital assets if you are ever incapacitated.
+The "Master Document": Create an offline, encrypted, or physically locked document detailing where your major assets live (which cloud services you use, where local backups are stored, and how to access your password manager master key).
+Which area feels like the most urgent bottleneck for you right now? Is it sorting through local files and project clutter, securing accounts, or getting a handle on cloud storage?
+i have a domain managed at square space called villagertim.com, email at google with villagertim@gmail.com. I am looking to stand up a dedicated server at home to run hermes-agent, as well as other services....these will all be in docker containers on that server. i use an iphone for my mobile presence. how do i tie it all together?
+Tying together a custom domain, a Google identity, a home server running Docker, and an iPhone is an incredibly satisfying project. Because your server lives at home behind your residential internet router, the core challenge is secure exposure: allowing your iPhone and external services to communicate with your home containers securely without exposing your home network to the entire internet.
+Here is the blueprint for how these pieces fit together seamlessly.
+The Master Architecture
+To get an idea of how data moves between your iPhone, your domain, and your house, here is how the traffic flows:
+[iPhone / External] ──> [villagertim.com (Squarespace)]
+│
+▼ (Secure Proxy Tunnel)
+[Cloudflare / Tailscale]
+│
+▼ (Inbound Home Router)
+[Home Server (Docker)]
+│
+┌───────────────────────┼───────────────────────┐
+▼ ▼ ▼
+[Hermes Agent] [Nginx Reverse Proxy] [Other Containers]
+Step 1: Handle Your Domain & DNS (Squarespace)
+Your Squarespace domain (villagertim.com) will act as the traffic controller for your services (e.g., hermes.villagertim.com, nextcloud.villagertim.com).
+Because home internet connections usually have a Dynamic IP address (meaning your ISP changes your home's IP address every few weeks), you shouldn't just point your domain directly to your home IP. Instead, use one of two methods:
+Option A: Cloudflare Tunnels (Recommended & Safest). Point your Squarespace custom DNS nameservers to Cloudflare (it's free). You then run a small Docker container on your home server called cloudflared. This container creates a secure, encrypted outbound connection to Cloudflare. You don't have to open any ports on your home router, and your home IP stays hidden.
+Option B: Dynamic DNS (DDNS). If you prefer a traditional setup, you can use a Docker container like oznu/cloudflare-ddns or a native Squarespace API script that constantly updates your domain's DNS records whenever your ISP changes your home IP. Note: This requires opening ports 80 and 443 on your router.
+Step 2: Set Up the Home Server & Reverse Proxy
+On your home server, you will want a "traffic cop" container that looks at incoming traffic for villagertim.com and routes it to the correct Docker container.
+Install Docker & Docker Compose. This is your foundation.
+Deploy a Reverse Proxy. Spin up a container like Nginx Proxy Manager or Traefik.
+This container automatically handles SSL certificates (HTTPS via Let's Encrypt) so everything is encrypted.
+If someone requests hermes.villagertim.com, the reverse proxy routes that traffic internally to your Hermes container on port 8080 (or whatever port it uses).
+Step 3: Deploy Hermes-Agent & Tie in Google
+Because Hermes-Agent is built by Nous Research to act as an autonomous, always-on assistant with persistent memory, it needs a way to talk to you and access your data.
+Docker Deployment: You'll run Hermes-Agent in a container. Ensure its data directory is mapped to a persistent directory on your host machine (e.g., -v ~/.hermes:/opt/data) so its learned skills and memories survive container updates.
+The Messaging Gateway: Hermes-Agent shines when you interact with it where you already hang out. Since you are on an iPhone, the absolute best way to interface with it is via Telegram or Signal.
+You create a private bot via Telegram's BotFather, lock the bot down so only your specific user ID can message it, and input that token into your Hermes .env file. Now, you can text your home server from your iPhone lock screen.
+Integrating Google (villagertim@gmail.com): Hermes supports OAuth integration or service accounts. You can grant your self-hosted Hermes agent access to read/write to your Google Calendar or Google Chat, turning it into an active coordinator for your digital life.
+Step 4: The iPhone Mobile Presence (Your Control Center)
+To manage and interact with this ecosystem from your iPhone, you'll want three core apps:
+Tailscale (For Admin Access): If you don't want to expose an application's web interface to the public internet via your domain, install Tailscale on your server and iPhone. It creates a private, zero-configuration mesh VPN. When turned on, you can type your server's private IP into Safari on your iPhone and access things like your Docker dashboard (Portainer) securely from anywhere in the world.
+Telegram / Signal: Your primary conversational UI for instructing your Hermes-Agent to run automations, write scripts, or check system health.
+Apple Shortcuts: You can build native iOS Shortcuts that send Webhook API requests to your home server's reverse proxy, allowing you to trigger home automations or Docker actions using iOS widgets or Siri.
+To get started, what hardware are you planning to use for the home server (e.g., an old PC, a Mini PC, a Raspberry Pi), and do you already have a preference for how you want to handle remote access (Cloudflare vs. a private VPN like Tailscale)?
+an older AIO intel i7 12 core cpu, 32 gb ram, 2tb ssd with a 1gbs internet connection
+That is an excellent set of specs for a home server. An Intel i7 with 12 cores and 32GB of RAM gives you plenty of processing power and memory headroom to run Docker, a reverse proxy, your development workflows, and hermes-agent simultaneously without breaking a sweat. Plus, a 1 Gbps internet connection means you won't face any bandwidth bottlenecks when accessing your services remotely.
+Since you are running an All-in-One (AIO) PC, the internal storage is likely a single 2TB NVMe SSD. While fast, you'll want to protect your data since home servers write a lot of log files and container data over time.
+Here is how to architect this specific machine into your ultimate Docker host.
+1. Operating System & Docker Storage Layout
+To get the most performance and stability out of that 12-core CPU, pass on Windows and install a headless Linux distribution.
+The OS: Ubuntu Server 24.04 LTS or Debian 12. They are lightweight, stable, and have the best community support for Docker.
+The Directory Structure: Keep your host system organized so backups are a breeze. Dedicate a single top-level directory for your Docker ecosystem:
+Plaintext
+/opt/docker/
+├── compose-files/ # Stores your docker-compose.yml files
+│ ├── proxy/
+│ └── hermes/
+└── container-data/ # Persistent volumes mapped to your containers
+├── nginx-proxy-manager/
+└── hermes-data/
+By keeping all container data in /opt/docker/container-data/, you only have to back up that single folder to protect your entire server's configuration and persistent memory.
+2. Remote Access Choice: The Cloudflare Tunnel Stack
+Given your setup, using a Cloudflare Tunnel (cloudflared) is the cleanest way to connect villagertim.com to your AIO server. It avoids port-forwarding on your home router entirely.
+Here is how the configuration files stack up using Docker Compose:
+The Reverse Proxy & Tunnel Stack
+You can combine your reverse proxy (Nginx Proxy Manager) and the Cloudflare connector into a single network stack. Create a folder at /opt/docker/compose-files/proxy/ and drop this docker-compose.yml inside:
+YAML
+version: '3.8'
+services:
+# The Reverse Proxy that routes traffic internally
+npm:
+image: 'jc21/nginx-proxy-manager:latest'
+container_name: nginx-proxy-manager
+restart: unless-stopped
+ports:
+- '80:80' # HTTP Traffic
+- '443:443' # HTTPS Traffic
+- '81:81' # Admin Web GUI Dashboard
+volumes:
+- /opt/docker/container-data/npm/data:/data
+- /opt/docker/container-data/npm/letsencrypt:/etc/letsencrypt
+networks:
+- proxy-tier
+# The secure outbound tunnel to Cloudflare
+tunnel:
+image: cloudflare/cloudflared:latest
+container_name: cloudflare-tunnel
+restart: unless-stopped
+command: tunnel --no-autoupdate run --token YOUR_CLOUDFLARE_TUNNEL_TOKEN
+networks:
+- proxy-tier
+networks:
+proxy-tier:
+name: proxy-tier
+3. Deploying Hermes-Agent
+With your proxy tier ready, you can deploy hermes-agent. Because it’s running on a 12-core i7, it can handle intensive agentic tasks, though for heavy LLM inference, you will likely want it routing API calls out to external providers (or a separate local machine with a dedicated GPU if you build one later).
+Create a folder at /opt/docker/compose-files/hermes/:
+YAML
+version: '3.8'
+services:
+hermes-agent:
+image: nousresearch/hermes-agent:latest # Replace with the specific image tag you are tracking
+container_name: hermes-agent
+restart: unless-stopped
+environment:
+- GOOGLE_CLIENT_ID=${GOOGLE_CLIENT_ID}
+- GOOGLE_CLIENT_SECRET=${GOOGLE_CLIENT_SECRET}
+- TELEGRAM_BOT_TOKEN=${TELEGRAM_BOT_TOKEN}
+- ALLOWED_USER_IDS=${YOUR_TELEGRAM_ID}
+volumes:
+- /opt/docker/container-data/hermes:/opt/agent/data
+networks:
+- proxy-tier
+4. Tying in the iPhone Dashboard
+To monitor this hardware from your iPhone without exposing your administrative control panels to the public web, install Tailscale on the server alongside Docker.
+For Public Services (hermes.villagertim.com): Traffic goes iPhone ──> Cloudflare ──> Cloudflare Tunnel Container ──> Nginx Proxy Manager ──> Hermes Container.
+For Private Admin Panels (Nginx Dashboard on Port 81, or Portainer): Leave these completely blocked from the internet. When you want to check on them from your iPhone, flip on the Tailscale VPN app on your phone, and navigate directly to your server’s secure internal Tailscale IP (e.g., http://100.x.x.x:81).
+Your Immediate Next Steps
+Flash the OS: Download Ubuntu Server 24.04 LTS and flash it to a USB drive using Rufus or BalenaEtcher. Install it on the AIO PC.
+Point your DNS: Log into Squarespace and change your domain's nameservers to point to a free Cloudflare account.
+Create the Tunnel: In the Cloudflare Dashboard, go to Zero Trust -> Networks -> Tunnels, create a named tunnel for your home server, and grab the token for your Docker Compose file.
+Would you like to drill down into setting up the Google API credentials for villagertim@gmail.com so your agent can interact with your Google environment, or focus on getting the base Linux server and Docker engine configured first?
+it will be handling two domains - villagertim.com and villagerchrisann.com. it will also have two hermes-agent containers - one for me and one for my wife.
+Running a dual-tenant setup for you and your wife is a brilliant way to handle things. Because hermes-agent builds a deeply personalized user profile, tracks unique memories, and curates its own skill libraries over time, keeping your instances completely separated is critical. Running two distinct containers ensures your data, automations, and memories never bleed into hers (and vice-versa).
+A warning from the official Nous Research documentation states:
+"Never run two Hermes gateway containers against the same data directory simultaneously — session files and memory stores are not designed for concurrent write access."
+To accomplish this smoothly, we will isolate their respective storage directories and utilize Nginx Proxy Manager to route traffic from your respective subdomains cleanly to the correct container.
+1. Directory Architecture
+To keep things perfectly organized on your 2TB SSD, expand your folder structure to explicitly separate the data for both domains:
+Plaintext
+/opt/docker/
+├── compose-files/
+│ ├── proxy/
+│ │ └── docker-compose.yml
+│ ├── hermes-tim/
+│ │ └── docker-compose.yml
+│ └── hermes-chrisann/
+│ └── docker-compose.yml
+└── container-data/
+├── npm/ # Nginx Proxy Manager data & SSL certs
+├── cloudflare/ # Tunnel credentials
+├── hermes-tim-data/ # Your persistent memory, skills, & config
+└── hermes-chrisann-data/ # Chrisann's persistent memory, skills, & config
+2. The Multi-Tenant Docker Setup
+Instead of trying to jam everything into one massive file, split your stacks. This allows you to update or restart your agent without interrupting your wife's agent.
+The Network & Proxy Stack (/opt/docker/compose-files/proxy/docker-compose.yml)
+Both of your custom domains can route through a single proxy tier. You can establish either two separate tunnels or route multiple subdomains through one master Cloudflare account. We will create an external Docker network called proxy-tier so all containers can talk to the proxy.
+YAML
+version: '3.8'
+services:
+npm:
+image: 'jc21/nginx-proxy-manager:latest'
+container_name: nginx-proxy-manager
+restart: unless-stopped
+ports:
+- '80:80'
+- '443:443'
+- '81:81'
+volumes:
+- /opt/docker/container-data/npm/data:/data
+- /opt/docker/container-data/npm/letsencrypt:/etc/letsencrypt
+networks:
+- proxy-tier
+tunnel:
+image: cloudflare/cloudflared:latest
+container_name: cloudflare-tunnel
+restart: unless-stopped
+command: tunnel --no-autoupdate run --token YOUR_CLOUDFLARE_MASTER_TOKEN
+networks:
+- proxy-tier
+networks:
+proxy-tier:
+name: proxy-tier
+Your Instance (/opt/docker/compose-files/hermes-tim/docker-compose.yml)
+Your instance will bind to your subfolder, use your Google credentials, and lock down its Telegram/Signal gateway communication exclusively to your personal chat ID.
+YAML
+version: '3.8'
+services:
+hermes-tim:
+image: nousresearch/hermes-agent:latest
+container_name: hermes-tim
+restart: unless-stopped
+environment:
+- GOOGLE_CLIENT_ID=${TIM_GOOGLE_CLIENT_ID}
+- GOOGLE_CLIENT_SECRET=${TIM_GOOGLE_CLIENT_SECRET}
+- TELEGRAM_BOT_TOKEN=${TIM_TELEGRAM_BOT_TOKEN}
+- ALLOWED_USER_IDS=${TIM_TELEGRAM_CHAT_ID}
+- HERMES_DASHBOARD=1
+volumes:
+- /opt/docker/container-data/hermes-tim-data:/opt/data
+networks:
+- proxy-tier
+ports:
+- "8081:8000" # Exposes your dashboard API layer internally on host port 8081
+Chrisann's Instance (/opt/docker/compose-files/hermes-chrisann/docker-compose.yml)
+Her instance will run entirely independently, mapping to her distinct domain, data directory, and messaging tokens.
+YAML
+version: '3.8'
+services:
+hermes-chrisann:
+image: nousresearch/hermes-agent:latest
+container_name: hermes-chrisann
+restart: unless-stopped
+environment:
+- GOOGLE_CLIENT_ID=${CHRISANN_GOOGLE_CLIENT_ID}
+- GOOGLE_CLIENT_SECRET=${CHRISANN_GOOGLE_CLIENT_SECRET}
+- TELEGRAM_BOT_TOKEN=${CHRISANN_TELEGRAM_BOT_TOKEN}
+- ALLOWED_USER_IDS=${CHRISANN_TELEGRAM_CHAT_ID}
+- HERMES_DASHBOARD=1
+volumes:
+- /opt/docker/container-data/hermes-chrisann-data:/opt/data
+networks:
+- proxy-tier
+ports:
+- "8082:8000" # Exposes her dashboard API layer internally on host port 8082
+3. Routing Traffic via Nginx Proxy Manager
+Once the containers are running, you will log into your Nginx Proxy Manager web interface (accessible via your local network or Tailscale at http://your-server-ip:81) to handle the incoming subdomains.
+Because all three setups share the proxy-tier Docker network, Nginx can route traffic using the container names directly rather than tracking changing IP addresses. You will add two Proxy Hosts:
+Domain NameSchemeForward Hostname / IPForward PortWebSockets Support
+agent.villagertim.comhttphermes-tim8000Enabled (Required for chat)
+agent.villagerchrisann.comhttphermes-chrisann8000Enabled (Required for chat)
+(Note: In the SSL tab for each host, you will request a new Let's Encrypt SSL certificate and turn on "Force SSL" so all mobile traffic from your iPhones is fully encrypted end-to-end).
+4. Configuring the Mobile Presence for Two
+Now that the backend is separated, here is how you both interface with your respective environments on your iPhones:
+The Conversational Interface: You will create two separate bots on Telegram via @BotFather (e.g., VillagerTimBot and VillagerChrisannBot). You message your bot, she messages hers. The containers will independently process your files, write your separate code sandboxes, and run your automated background tasks completely out of sight of each other.
+The Web Dashboard: When you want to look at your agent's skills, workflows, or logs visually on a browser, you can pull up the web app. If you are away from home, you can access your dashboard securely via Tailscale at [http://100.](http://100.)x.x.x:8081 while she can access hers at [http://100.](http://100.)x.x.x:8082.
+Since we are doing a dual setup, setting up the cloud credentials correctly matters. Would you like to tackle generating the distinct Telegram Bot tokens first, or jump into setting up the Google Cloud Console projects so both agents can interact with your respective Google accounts?
+we will also be running separate obsidian vaults
+Integrating two separate Obsidian vaults into this setup—especially with iPhones as your primary mobile devices—adds a layer of complexity because of how iOS sandboxes files. On an iPhone, apps cannot easily view or modify folders belonging to other apps unless they are specifically synced through a compatible protocol.
+To sync two separate vaults smoothly from your home server to your respective iPhones, you have two excellent open-source approaches.
+The Synchronization Options
+Option A: Self-Hosted Obsidian Sync via CouchDB (Recommended)
+Obsidian natively relies on a database framework called CouchDB under the hood for its official Sync service. By running a community-supported CouchDB container on your server, you can mimic the official backend entirely.
+How it works on mobile: You install a community plugin in Obsidian called Remotely Save or Self-Hosted LiveSync. The plugin syncs your markdown files from the phone directly into your server's database via your custom subdomains.
+The Big Advantage: It bypasses iOS file system limitations completely. It syncs lightning fast directly inside the native Obsidian app over HTTPS, without needing external file managers.
+Option B: Self-Hosted Nextcloud / WebDAV
+You can spin up a Nextcloud or a lightweight WebDAV container on your Docker host.
+How it works on mobile: You use the Remotely Save plugin inside iOS Obsidian, pointing it directly to your server's WebDAV URL (e.g., vault.villagertim.com).
+The Big Advantage: Your vaults are stored simply as plain-text folder directories on your 2TB SSD, making them immediately viewable by other home server tools or text editors.
+Updating the Architecture
+To support the CouchDB approach (Option A), we will expand your existing storage structure and Docker layout. CouchDB can handle multiple separate databases simultaneously, meaning you only need one database container to run both of your isolated vaults securely.
+Updated Folders
+Plaintext
+/opt/docker/
+├── compose-files/
+│ ├── proxy/
+│ ├── hermes-tim/
+│ ├── hermes-chrisann/
+│ └── obsidian-sync/ # New stack folder
+│ └── docker-compose.yml
+└── container-data/
+├── npm/
+├── cloudflare/
+├── hermes-tim-data/
+├── hermes-chrisann-data/
+└── couchdb-data/ # Stores both encrypted vault databases
+The Database Stack (/opt/docker/compose-files/obsidian-sync/docker-compose.yml)
+Drop this service stack into your new directory. It sets up the database backend and hooks it straight into your shared reverse proxy network.
+YAML
+version: '3.8'
+services:
+couchdb:
+image: couchdb:3.3
+container_name: obsidian-couchdb
+restart: unless-stopped
+environment:
+- COUCHDB_USER=admin_user # Change this to a secure admin name
+- COUCHDB_PASSWORD=secure_pass # Change this to a strong password
+volumes:
+- /opt/docker/container-data/couchdb-data:/opt/couchdb/data
+networks:
+- proxy-tier
+Routing the Vault Traffic
+Once the container is spun up, you will open your Nginx Proxy Manager dashboard to point your new subdomains to the single CouchDB container on port 5984.
+You will create two separate proxy hosts to give each vault its own frontend, ensuring your endpoints match your respective domains:
+Domain NameSchemeForward HostnameForward PortWebSockets Support
+sync.villagertim.comhttpobsidian-couchdb5984Enabled
+sync.villagerchrisann.comhttpobsidian-couchdb5984Enabled
+iPhone & Tenant Isolation Setup
+To ensure total privacy between your digital brains, you will create two completely distinct databases inside the CouchDB panel (accessible at http://your-server-ip:5984/_utils via Tailscale):
+Log in with your master admin credentials.
+Create a database named tim_vault.
+Create a separate database named chrisann_vault.
+(Optional but recommended): Set up unique non-admin user credentials inside CouchDB for each database so your iPhone plugin cannot authenticate into her database layout and vice versa.
+On Your iPhones:
+Open Obsidian on your iPhone and create a brand new, empty vault.
+Go to Community Plugins, search for Self-Hosted LiveSync (or Remotely Save), and install it.
+In the plugin settings, input your respective subdomains:
+Your phone: [https://sync.villagertim.com/tim_vault](https://sync.villagertim.com/tim_vault)
+Her phone: [https://sync.villagerchrisann.com/chrisann_vault](https://sync.villagerchrisann.com/chrisann_vault)
+Turn on "Sync on Startup." Your notes will now seamlessly upload and download in the background straight to your AIO home server whenever you open the app on your phone.
+Would you like to explore setting up this CouchDB data stack alongside the base server configuration, or focus first on getting the home network's domain tunnels solid?
+here are the containers i already have setup in docker.
+Looking at your container list, you’ve already done some fantastic groundwork here. You have cleanly separated environments for both of you across the board, which is exactly the right play for a dual-tenant setup.
+However, taking a close look at your Portainer/Docker dashboard, there are a few immediate operational bottlenecks, structural duplicates, and routing details we need to clean up so your Squarespace domains, iPhones, and services play nice together.
+1. The Duplicate "Hermes" Container Issue (Action Required)
+If you look closely at your running containers, you have duplicates spinning up for both instances:
+Two hermes-chris containers (54da96ee5477 and 1a9d12195e7b)
+Two hermes-tim containers (bc33b42cc722 and c7a1172e8b81 cut off as -d)
+Why this is a problem: If these duplicate pairs are mapping to the exact same persistent data folders on your 2TB SSD, they will corrupt each other's databases, memory logs, and local AI workspace histories.
+The Fix:
+Stop the duplicates. You only want one active container for hermes-tim and one active container for hermes-chris.
+Check your Compose files to see if you accidentally ran docker compose up in two different directories, or if you left detached (-d) orphan containers running from an older configuration attempt.
+2. Integrating Your Obsidian GUI Containers
+You are running two obsidian-gui containers (likely the linuxserver/obsidian image). This is a smart choice for an AIO server because it serves up a full desktop version of Obsidian via a web browser (using KasmVNC/novnc).
+To bridge these to your iPhones and domains:
+For the iPhones: You won't actually sync your mobile phone apps directly to these GUI containers. Instead, these GUI containers will read raw markdown files stored locally on your server's SSD.
+The Sync Layer: To get those same files onto your iPhones, we need to map the volume storage of these two GUI containers to a sync engine (like CouchDB or Git/Remotely Save) so that when you edit a note on your phone, it instantly pops up on your server's Obsidian GUI screen, and vice versa.
+3. Harnessing the Power of n8n
+You've spun up n8n-tim and n8n-chrisann. This is the perfect automation engine to tie your digital presence together.
+For your iPhone: You can use the iOS Shortcuts app to trigger custom Webhooks sent directly to your respective n8n container. For example: a shortcut on your iPhone screen called "Log Idea" can instantly pass text to your n8n webhook, which then formats it and drops it straight into your Obsidian vault directory or hands it off to your Hermes Agent.
+For Google Identity: Your n8n instances can handle OAuth connections to villagertim@gmail.com much more easily than raw terminal scripts, letting you automate calendar events, emails, and file management based on your workflows.
+4. The Bridge: hermes-proxy
+You have a container named hermes-proxy running an Alpine Nginx image exposing internal port 9119.
+To connect your two Squarespace domains (villagertim.com and villagerchrisann.com) down to this machine via Cloudflare Tunnels, this proxy needs to know exactly where to send traffic based on the incoming domain request.
+The Routing Checklist
+To tie this exact dashboard together with your domains and iPhones, your hermes-proxy (or an updated Nginx Proxy Manager container) needs to route incoming web traffic using the exact container names from your image:
+Incoming SubdomainRoutes Internally ToInternal PortWhat it does for you
+agent.villagertim.comhermes-tim8000Connects your iPhone chat/dashboard to your agent.
+agent.villagerchrisann.comhermes-chris8000Connects your wife's iPhone chat/dashboard to her agent.
+notes.villagertim.comobsidian-gui-tim3000Lets you view your full Obsidian vault in a browser anywhere.
+notes.villagerchrisann.comobsidian-gui-chris3000Lets her view her full Obsidian vault in a browser anywhere.
+automate.villagertim.comn8n-tim5678Handles your personal webhooks, iOS shortcuts, and Google integrations.
+automate.villagerchrisann.comn8n-chrisann5678Handles her personal webhooks and automation paths.
+To make sure your server configuration is rock solid before pointing the domains at it, are your current containers managed via separate Docker Compose files, or did you deploy them individually using Portainer's web UI?
+here is the docker compose file
+This Compose file clarifies exactly what is happening under the hood.
+Looking back at your Portainer screenshot ("image_f86779.png"), those "duplicate" containers weren't accidents at all. They are your separate architectural layers: the Gateway backend running its runtime command, and the Dashboard frontend running on port 9119. Because they share names in Docker's process tracker, they look identical at a glance but are doing completely distinct jobs.
+Your shared data directories (./data/tim/obsidian and ./data/chrisann/obsidian) are brilliantly designed. Because both the hermes-agent containers and the obsidian-gui containers mount these exact same paths, anything you type in your browser-based Obsidian GUI is immediately readable by your Hermes Agent via its local filesystem context.
+To tie your Squarespace domains (villagertim.com, villagerchrisann.com) and your iPhones directly into this exact file layout, here is the adjustments we need to make.
+1. Adjusting the Portainer Routing
+Currently, your hermes-proxy container is exposing a string of individual ports (9119 through 9124). Since we want to routing everything cleanly through a Cloudflare Tunnel over encrypted subdomains, we need your Nginx container to listen on standard web ports (80 and 443) inside the Docker network.
+Instead of hitting raw ports like 9119 on your iPhone, we want your nginx.conf file to act as the internal switchboard.
+The Target Nginx Mapping
+Update your ./nginx.conf file on your server to handle incoming routing based on the HTTP Host Header sent by Cloudflare. It should look like this:
+Nginx
+events {}
+http {
+# ─── TIM'S INFRASTRUCTURE ───
+server {
+listen 80;
+server_name agent.villagertim.com;
+location / {
+proxy_pass http://hermes-tim-dashboard:9119; # Directs to your dashboard container
+proxy_set_header Host $host;
+proxy_set_header Upgrade $http_upgrade; # Crucial for WebSockets
+proxy_set_header Connection "upgrade";
+}
+}
+server {
+listen 80;
+server_name notes.villagertim.com;
+location / {
+proxy_pass http://obsidian-gui-tim:3000; # Directs to your LinuxServer Obsidian GUI
+proxy_set_header Host $host;
+proxy_set_header Upgrade $http_upgrade;
+proxy_set_header Connection "upgrade";
+}
+}
+server {
+listen 80;
+server_name automate.villagertim.com;
+location / {
+proxy_pass http://n8n-tim:5678; # Directs to your personal n8n automation
+proxy_set_header Host $host;
+}
+}
+# ─── CHRISANN'S INFRASTRUCTURE ───
+server {
+listen 80;
+server_name agent.villagerchrisann.com;
+location / {
+proxy_pass http://hermes-chrisann-dashboard:9119;
+proxy_set_header Host $host;
+proxy_set_header Upgrade $http_upgrade;
+proxy_set_header Connection "upgrade";
+}
+}
+server {
+listen 80;
+server_name notes.villagerchrisann.com;
+location / {
+proxy_pass http://obsidian-gui-chrisann:3000;
+proxy_set_header Host $host;
+proxy_set_header Upgrade $http_upgrade;
+proxy_set_header Connection "upgrade";
+}
+}
+server {
+listen 80;
+server_name automate.villagerchrisann.com;
+location / {
+proxy_pass http://n8n-chrisann:5678;
+proxy_set_header Host $host;
+}
+}
+}
+2. Adding the Cloudflare Tunnel to the Compose File
+To securely expose this Nginx switchboard without punching holes in your home router, add a cloudflared service directly to the bottom of your existing docker-compose.yml.
+Append this under the proxy: service block:
+YAML
+# ─────────────────────────────────────────────────────────────────────────────
+# CLOUDFLARE TUNNEL (The WAN Secure Bridge)
+# ─────────────────────────────────────────────────────────────────────────────
+cloudflare-tunnel:
+image: cloudflare/cloudflared:latest
+container_name: cloudflare-tunnel
+restart: unless-stopped
+networks:
+- litellm_default
+command: tunnel --no-autoupdate run --token ${CLOUDFLARE_TUNNEL_TOKEN}
+(Make sure to add your CLOUDFLARE_TUNNEL_TOKEN to an environment variable or swap it directly into the file).
+3. Connecting the iOS Obsidian Apps
+Because your server's Obsidian instances are reading raw local directories (./data/tim/obsidian), we can hook up your iPhones using the CouchDB Sync or a Git Sync automation container.
+If you choose to use the community LiveSync or Remotely Save plugin inside the native iOS Obsidian app on your iPhones, add a CouchDB block to this exact compose file, mapping its database ports through your hermes-proxy. This ensures that changes you scribble on your phone sync to the server's directory, instantly showing up in your browser via notes.villagertim.com.
+4. Tying It All Together on Your iPhones
+Once the Cloudflare Tunnel is connected to your local Nginx proxy, here is what your day-to-day presence looks like:
+The Desktop View: You open Safari on your iPhone, head to notes.villagertim.com, and log in using your .htpasswd-tim credentials. You have full access to your desktop Obsidian vault.
+The Mobile Sync: Your native iOS Obsidian application automatically pushes markdown updates back to the server in the background.
+The Agentic Interaction: Your agent-tim and agent-chrisann gateways communicate directly with you via your configured Telegram or Signal bot tokens. When you ask your bot to analyze a project or draft a file, it drops it straight into your local server file directory, updating your notes instantly.
+Now that the exact infrastructure map is clear, should we focus on configuring the Cloudflare Zero Trust panel to map these exact subdomains down to your hermes-proxy, or jump into the mobile-to-server sync setup for the Obsidian vaults?Since you are using Antigravity-ide, its autonomous agentic mode is perfect for executing complex file-system orchestrations directly in your workspace. You can pass the markdown block below straight into Antigravity's Editor view agent sidebar or its task runner.
+This prompt explicitly tells Antigravity to parse your file structure, modify the target configuration files safely, and append the necessary components without disrupting your existing litellm_default environment or your dual-tenant runtime configurations.
+📋 Copy/Paste Prompt for Antigravity-IDE
+Plaintext
+As an expert systems administrator and Docker engineer, I need you to orchestrate an infrastructure upgrade to our local multi-tenant stack. We are adding routing definitions for two custom domains (villagertim.com and villagerchrisann.com) and creating an automated internal bridge for our separate mobile/desktop filesystems.
+Please perform the following verifiable actions sequentially:
+1. LOCATE AND UPDATE DOCKER-COMPOSE.YML:
+- Open the target `docker-compose.yml` file in the workspace directory.
+- Modify the existing 'proxy' service to drop the individual port mappings (9119:9119, etc.). Instead, bind standard ports "80:80" and "443:443" to make it the default ingress point for our domains.
+- At the bottom of the services block, append a new outbound tunnel engine service:
+service name: cloudflare-tunnel
+image: cloudflare/cloudflared:latest
+container_name: cloudflare-tunnel
+restart: unless-stopped
+networks:
+- litellm_default
+command: tunnel --no-autoupdate run --token ${CLOUDFLARE_TUNNEL_TOKEN}
+2. ADJUST INGRESS FOR REVERSE PROXY:
+- Inspect the associated `./nginx.conf` referenced by the proxy volume.
+- Rewrite/expand it to listen on port 80 and trap incoming traffic matching our Host Headers.
+- Implement clear, reverse-proxy server blocks routing to the explicit internal container names on the 'litellm_default' network:
+* agent.villagertim.com -> http://hermes-tim-dashboard:9119
+* notes.villagertim.com -> http://obsidian-gui-tim:3000
+* automate.villagertim.com -> http://n8n-tim:5678
+* agent.villagerchrisann.com -> http://hermes-chrisann-dashboard:9119
+* notes.villagerchrisann.com -> http://obsidian-gui-chrisann:3000
+* automate.villagerchrisann.com -> http://n8n-chrisann:5678
+- Ensure you pass structural HTTP headers ("Host $host", "Upgrade $http_upgrade", and "Connection 'upgrade'") to fully preserve the persistent WebSockets connections required by the frontends.
+3. EXECUTE VERIFICATION:
+- Run a config test against the updated Nginx structure (`docker compose exec -T proxy nginx -t` or local equivalent) to verify syntax sanity.
+- Present the exact layout changes as a clean verification code diff block when completed. Do not execute a structural down/up cycle on the active runtime unless the configuration tests clear cleanly.
+What Antigravity-IDE Will Do With This
+Analyze Your Workspace Context: It will find the exact docker-compose.yml and matching local paths (./nginx.conf) you have set up.
+Safely Rewrite Configurations: It will adjust the Nginx routing rules to switch from a multi-port bridge to a clean, sub-domain naming router.
+Generate Artifacts: You will get a visual display showing exactly how the services align, making sure your environment configurations for things like .tim-agent.env and .chrisann-agent.env stay locked down and pristine.
+Once your Antigravity agent finishes running this, do you want to move on to connecting your free Cloudflare account dashboard to point these domains down to your newly generated tunnel structure?
+Antigravity-ide did a spectacular job here. The output looks absolutely pristine—retaining your basic authentication .htpasswd layers while switching to a Virtual Host pattern on port 80 is exactly what you need for a streamlined ingress point.
+Now that the local code, files, and containers are beautifully configured on your 12-core server, the next step is connecting the Cloudflare Cloud Dashboard to link your Squarespace domains down to this machine.
+1. Configure the Cloudflare Tunnels (The Control Plane)
+Since you are managing two separate root domains (villagertim.com and villagerchrisann.com), you can handle them through a single Cloudflare account.
+Point Nameservers: Ensure both domains in your Squarespace account are configured to use Cloudflare's custom nameservers (Cloudflare provides these free when you add a site to your dashboard).
+Create the Tunnel: In your Cloudflare Zero Trust Dashboard (Networks -> Tunnels), you will create one single master tunnel named something like home-server.
+Capture the Token: Cloudflare will provide a long token string. You will assign this string to the ${CLOUDFLARE_TUNNEL_TOKEN} environment variable on your system so your new cloudflare-tunnel container can authenticate and open the outbound connection.
+2. Map the Public Subdomains to the Tunnel
+Inside that single Cloudflare Tunnel configuration view, navigate to the Public Hostname tab. You will map all six of your newly configured subdomains down to the Nginx proxy container over standard HTTP.
+Because your hermes-proxy container is handling the virtual host sorting based on the domain name, you will point every single subdomain to the exact same local destination:
+Public Domain
+Type
+URL (Internal Docker Path)
+Why this works
+agent.villagertim.com
+HTTP
+http://hermes-proxy:80
+Cloudflare passes the host header, Nginx routes to hermes-tim-dashboard.
+notes.villagertim.com
+HTTP
+http://hermes-proxy:80
+Cloudflare passes the host header, Nginx routes to obsidian-gui-tim.
+automate.villagertim.com
+HTTP
+http://hermes-proxy:80
+Cloudflare passes the host header, Nginx routes to n8n-tim.
+agent.villagerchrisann.com
+HTTP
+http://hermes-proxy:80
+Cloudflare passes the host header, Nginx routes to hermes-chrisann-dashboard.
+notes.villagerchrisann.com
+HTTP
+http://hermes-proxy:80
+Cloudflare passes the host header, Nginx routes to obsidian-gui-chrisann.
+automate.villagerchrisann.com
+HTTP
+http://hermes-proxy:80
+Cloudflare passes the host header, Nginx routes to n8n-chrisann.
+⚠️ Important Cloudflare Edge Settings:
+For the notes and agent subdomains, go to Cloudflare's SSL/TLS -> Edge Certificates and ensure WebSockets is toggled ON.
+In the SSL/TLS Overview, set your encryption mode to Flexible or Full. Cloudflare handles the public HTTPS certificate natively on their edge servers, meaning your iPhones talk to Cloudflare via secure HTTPS (443), and Cloudflare safely passes it down the tunnel to your local Nginx over port 80.
+3. Launching and Verification
+Once the Cloudflare hostnames are saved, you can safely bring the upgraded stack online. Run this command in your project directory:
+Bash
+HERMES_UID=$(id -u) HERMES_GID=$(id -g) docker compose up -d
+Verify that both the hermes-proxy and cloudflare-tunnel containers show a healthy running status in Portainer.
+Your New Mobile Workflow
+Once that tunnel connects, test the setup using your iPhone (disconnect from home Wi-Fi and use cellular data to guarantee the external routing works):
+Open Safari and navigate to [https://notes.villagertim.com](https://notes.villagertim.com). Your phone will prompt you for your basic auth password. Once entered, you’ll be looking at your full desktop Obsidian vault right on your phone screen.
++ 1
+Open [https://agent.villagertim.com](https://agent.villagertim.com) to check your personal Hermes status logs and configurations seamlessly.
+Would you like to move on to connecting your personal Telegram or Signal bots to your respective gateway instances next, or should we wire up villagertim@gmail.com into your n8n automation container to start setting up workflows?
+To connect your Google identity (villagertim@gmail.com) to your newly deployed n8n-tim container, you need to configure a secure OAuth2 bridge. This allows your personal automation suite to safely access your Gmail, Google Calendar, or Google Drive without exposing your master account password.
+Because your automate.villagertim.com address is now active through the Cloudflare Tunnel, the setup is straightforward.
+Step 1: Create a Project in Google Cloud Console
+Go to the Google Cloud Console and log in with villagertim@gmail.com.
+Click the project dropdown in the top left and select New Project. Name it something like Tim-Home-Automation and hit Create.
+Make sure your new project is selected in the top dropdown.
+Step 2: Configure the OAuth Consent Screen
+Before Google will issue security keys, you have to define who is allowed to log into this application.
+In the left sidebar, navigate to APIs & Services > OAuth consent screen.
+For User Type, select External (since you are using a standard @gmail.com account and not a corporate Google Workspace account). Click Create.
+Fill out the required App Information:
+App Name: Tim n8n Agent
+User support email: villagertim@gmail.com
+Developer contact email: villagertim@gmail.com
+Click Save and Continue through the Scopes step (you will request specific permissions inside n8n later).
+Crucial Step (Test Users): Under the "Test users" screen, click Add Users and type in your exact email: villagertim@gmail.com. Because your app will remain in "Testing" mode (which is fine and recommended for personal use), only the emails listed here are allowed to connect.
+Click Save and Finish.
+Step 3: Generate Your API Credentials
+Now, you will generate the exact lock-and-key set that n8n needs.
+In the left sidebar, click on Credentials.
+Click + Create Credentials at the top and select OAuth client ID.
+Set the Application Type to Web application.
+Set the Name to n8n Local Server.
+Scroll down to Authorized redirect URIs and click + Add URI.
+Input your exact personal automation domain webhook callback address:
+https://automate.villagertim.com/rest/oauth2-credential/callback
+7. Click **Create**.
+> 🔑 **Copy Your Secrets:** Google will pop up a window showing your **Client ID** and **Client Secret**. Copy these immediately—you will need to paste them into n8n in the next step.
+## Step 4: Link Google Inside n8n
+1. Grab your iPhone or computer and pull up your personal dashboard at `[https://automate.villagertim.com](https://automate.villagertim.com)`[cite: 2].
+2. Bypass your Nginx basic authentication prompt using your `.htpasswd-tim` credentials[cite: 2].
+3. In the left menu of n8n, click on **Credentials**, then click **Add Credential** in the top right.
+4. Search for **Google** (e.g., *Google Calendar*, *Gmail*, or *Google Drive* depending on what you want to automate first).
+5. Change the Authentication method dropdown to **OAuth2**.
+6. Paste the **Client ID** and **Client Secret** you just generated in the Google Cloud Console.
+7. Click **Sign in with Google**. A native Google login window will pop up. Log in as `villagertim@gmail.com`.
+8. *Note: Because this is a self-made app, Google will show a warning screen saying "Google hasn't verified this app." Click **Advanced** and then click **Go to n8n Local Server (unsafe)** to grant permissions.*
+---
+## 🚀 Your First Mobile Automation to Try
+Once that credential turns green and says "Connected", you can build incredibly powerful workflows.
+For instance, you can use n8n's **Webhook node** to create a private URL endpoint. Then, you can configure an **Apple Shortcut** on your iPhone home screen. When you tap it, your phone sends a quick payload to `[https://automate.villagertim.com](https://automate.villagertim.com)`[cite: 2]. n8n can instantly process that ping, log it directly into your `obsidian-gui-tim` vault file structure, and add a calendar block straight to your Google Calendar[cite: 1, 2].
+Would you like help mapping out a specific automation workflow next, or should we go ahead and configure your separate Telegram bot tokens for the `hermes-agent` setups?
+That is a very sharp catch! You are completely right to call that out: if you don't have a Cloudflare account yet, that cloudflare-tunnel container is currently sitting completely dark and idle on your home server.
+The configuration that Antigravity-ide wrote for your docker-compose.yml and nginx.conf sets up the internal blueprint for how the traffic will move once the connection is alive, but it cannot actually bridge out to the public internet until you establish the cloud-side of the handshake.
+Without a Cloudflare account, trying to open https://automate.villagertim.com on your iPhone right now will just result in a connection error.
+To turn the system on and get the tunnel active, you just need to complete a quick, free cloud setup:
+1. Create a Free Cloudflare Account
+Go to Cloudflare's Signup Page and create a free account using your villagertim@gmail.com email.
+Click Add a Site in the dashboard, type in villagertim.com, and select the Free tier.
+Repeat this step to add villagerchrisann.com to the same account.
+2. Update Your Nameservers at Squarespace
+Cloudflare will scan your existing domain layouts and give you two custom nameserver addresses (e.g., amir.ns.cloudflare.com and olga.ns.cloudflare.com).
+Log into your Squarespace Domain Dashboard.
+Select villagertim.com, find the DNS Settings, and choose Custom Nameservers.
+Paste the two nameservers Cloudflare gave you and save. (Do the same for villagerchrisann.com).
+(Note: This doesn't move your domain registration away from Squarespace; it just lets Cloudflare securely route the subdomains down to your house).
+3. Generate Your Security Token
+In your Cloudflare dashboard sidebar, click Zero Trust (this is completely free for up to 50 users).
+Go to Networks > Tunnels and click Create a Tunnel.
+Name it home-server and select Cloudflared as the environment.
+Cloudflare will generate a command string containing a long mix of numbers and letters. That long string is your CLOUDFLARE_TUNNEL_TOKEN.
+4. Wake Up the Tunnel
+Now that you have the token, you feed it to your home server so the container can authenticate:
+Open your environment file or update your docker-compose.yml directly by replacing ${CLOUDFLARE_TUNNEL_TOKEN} with that exact string you copied from the dashboard.
+In your server terminal (or via Antigravity-ide), run:
+docker compose up -d cloudflare-tunnel
+The moment that container starts, it will reach out, find your new Cloudflare account, and establish a rock-solid, encrypted highway between your 12-core AIO server and your domains.
+Once that connection says **"Healthy"** in your cloud dashboard, you can immediately jump back to the Google Cloud integration steps we looked at for n8n! Let me know if you want to get that cloud account set up first or if you hit any snags modifying the token.
+This is the exact screen you want to see—Cloudflare successfully scanned and imported your existing Squarespace configuration.
+Before hitting "Continue" or "Next", there are two critical things we need to address on this page to ensure your wife's email doesn't break and your home server routing works perfectly.
+1. Fix the Email Warning (Crucial)
+Look at the warning bar near the top:
+"To receive email at @villagerchrisann.com addresses, add a mail exchange (MX) record."
+Because Cloudflare is taking over the DNS, if you don't add your Google Workspace / Gmail MX records right here, your wife will stop receiving emails the moment you flip the switch at Squarespace.
+How to fix it:
+Click the blue + Add record button.
+Search for the standard Google MX records, or add them manually by creating an MX type record.
+If Google is your provider, the standard record to add is:
+Type: MX
+Name: @ (or leave it as your root domain)
+Mail server: SMTP.GOOGLE.COM
+Priority: 1
+TTL: Auto
+Save the record. (Cloudflare will automatically clear that warning banner once it detects a valid MX record).
+2. Add Your Home Server Subdomains
+Right now, Cloudflare only knows about your root domain and your old Squarespace www records. We need to add the placeholders for the three specific subdomains your Nginx proxy is waiting for.
+For each of the three subdomains below, click + Add record:
+Type
+Name
+Target / Content
+Proxy Status
+Why we are adding it
+CNAME
+agent
+villagerchrisann.com
+🟠 Proxied
+For her Hermes Agent Dashboard
+CNAME
+notes
+villagerchrisann.com
+🟠 Proxied
+For her Obsidian Web GUI
+CNAME
+automate
+villagerchrisann.com
+🟠 Proxied
+For her n8n Automation instance
+Note: By pointing these CNAME records to your root domain (villagerchrisann.com) and keeping the orange cloud Proxied, Cloudflare will automatically intercept requests to agent.villagerchrisann.com and funnel them directly down through your secure home tunnel container!
+Next Step
+Once those records are added and saved, scroll down to the bottom of the page and click Continue.
+Cloudflare will then give you the two custom nameservers you need to copy and paste over into your Squarespace dashboard to finalize the swap. Let me know when you see those nameservers or if you want me to double-check the MX settings with you!
+No, updating the DNS records by itself will not automatically create or buy a new email address.
+What this step actually does is construct the routing highway so that if you have an active email service for villagerchrisann.com, the internet knows to send those messages to Google’s mail servers instead of letting them bounce.
+Here is exactly how the email side of this plays out and what you need to do:
+1. The Pre-requisite: Google Workspace
+To actually get a custom domain inbox (like chrisann@villagerchrisann.com), you cannot use a standard free @gmail.com account. You need a Google Workspace subscription (Google’s business/professional tier).
+If you already have a Google Workspace account active for her domain, adding the MX record on this Cloudflare screen is simply the final step that activates it.
+If you do not have a Google Workspace account for her yet, you would need to go to workspace.google.com, sign up using villagerchrisann.com, and pick a plan.
+2. Why the MX Record Matters Right Now
+The warning banner you see on Cloudflare is a generic safety alert. Cloudflare notice that your domain layout imports text records and A records from Squarespace, but it doesn't see a mail controller (MX record).
+Rule of Thumb: If she was already successfully receiving custom domain emails while the domain was managed at Squarespace, you must look at your original Squarespace DNS panel, copy those exact same MX records, and paste them into this Cloudflare screen before hitting continue. Otherwise, her inbound mail flow will break during the nameserver swap.
+3. The Settings to Enter
+If you are using (or plan to use) Google Workspace for her domain's email, click + Add record on that Cloudflare screen and input these exact values:
+Type: MX
+Name: @
+Mail Server: smtp.google.com
+Priority: 1
+Proxy Status: 🔘 DNS Only (Ensure the cloud icon is grey, not orange, for mail records)
+Once that MX record is added to match your subdomains (agent, notes, automate), you can confidently hit continue, update the nameservers at Squarespace, and your self-hosted containers and email systems will all function perfectly side-by-side!
+Yes, absolutely! Having separate Gemini Advanced subscriptions (which use Gemini Pro/Ultra) gives your multi-tenant setup a massive advantage.
+Here is exactly how your premium subscriptions fit into your home server and mobile ecosystem to make your digital presence incredibly powerful:
+1. High-Performance Local AI Tooling
+Because hermes-agent is an advanced agentic framework, it relies on having a smart, reliable language model to generate its thoughts, manage its memory stores, and write your automation code.
+By having your Gemini subscriptions, you gain access to the Google AI Studio API platform.
+You can generate dedicated API keys for your respective accounts.
+Instead of forcing your home server's CPU to slowly run a small open-source model locally, your hermes-tim and hermes-chrisann containers can route their backend reasoning directly to Google's massive cloud infrastructure using Gemini 1.5 Pro or Gemini 1.5 Flash.
+Your 12-core server stays lightweight and blazing fast because the heavy lifting happens in the cloud, while your local data remains perfectly private on your 2TB SSD.
+2. Setting it up in your LiteLLM Stack
+Your docker-compose.yml file notes that both of your agents talk to a LiteLLM Proxy stack running in another folder. LiteLLM's entire job is acting as a universal translator for AI keys.
+To use your premium Gemini access:
+Go to the Google AI Studio developer console using your respective Google accounts.
+Generate a personal API key for villagertim@gmail.com and have your wife generate one for her account.
+Drop those keys into your respective LiteLLM environment files (/home/cia-one/dev/litellm).
+LiteLLM will securely route your personal agent queries using your Gemini key, and her agent queries using her Gemini key—keeping your usage meters, custom instructions, and personal data boundaries completely separate.
+3. Native iPhone Power
+On your iPhones, your subscriptions give you both full access to the premium Gemini app or web space. You can use n8n to bridge the two worlds:
+The Vision Link: You can use the Gemini app on your phone to analyze complex documents, images, or layouts.
+The Server Hook: If you want that analysis saved to your permanent digital brain, you can share that text or output directly into your native iOS Obsidian app, which will instantly sync back down the Cloudflare Tunnel to your home server.
+Once you finish saving those Cloudflare DNS records and activating your tunnel, would you like to configure the Gemini API keys in your LiteLLM backend so your Hermes agents can wake up and start talking to you?
+No, you do not need a Google Workspace account right now. Take a deep breath—we can completely skip that part.
+None of this infrastructure will have any impact whatsoever on your current email addresses (villagertim@gmail.com and villagerchrisann@gmail.com).
+Why Your Email is 100% Safe
+Your current email addresses end in @gmail.com. Those are standard, free personal Google accounts.
+The changes you are making in Cloudflare are only for villagertim.com and villagerchrisann.com.
+Because your emails do not use your custom domains (you aren't using tim@villagertim.com), changing the DNS settings on this screen will not touch, interrupt, or change your @gmail.com inboxes at all. They will keep working exactly as they do right now.
+What to Do on the Cloudflare Screen Right Now
+Since you both use standard @gmail.com addresses, you can completely ignore that "MX record" warning banner at the top of your screen.
+Here is your exact checklist to get un-lost and move past this page:
+Ignore the MX Mail Warning: Do not add any mail records.
+Add Your Service Records: Click + Add record and add your three subdomains so your phone can find your server later:
+CNAME | agent | villagerchrisann.com | 🟠 Proxied
+CNAME | notes | villagerchrisann.com | 🟠 Proxied
+CNAME | automate | villagerchrisann.com | 🟠 Proxied
+Hit Continue: Scroll to the bottom of the page and click Continue.
+Once you click continue, Cloudflare will finally show you its custom nameservers. Copy those, paste them into Squarespace, and this entire domain step is officially done!
+Does that help clear up the confusion?
+ou are completely in the clear.
+Since you both use standard personal email addresses ending in @gmail.com, nothing you do on this Cloudflare screen can touch, change, or break your actual email inboxes. They will continue to work perfectly on your iPhones just like they do right now.
+Looking at your image (image_f7ec51.png), you are ready to wrap up this domain stage. Here is exactly what to do next:
+1. Clear Out the Old Squarespace Web Records
+Because you are shifting your web traffic over to your home server's Cloudflare Tunnel, you want to delete the existing records pointing to Squarespace's web servers. This prevents any routing conflicts.
+On the list in your image, look at the Actions column on the right side and click Delete for these specific rows:
+❌ Delete all 4 A records (the ones pointing to 198.185.159.x and 198.49.23.x).
+❌ Delete the CNAME record for www (the one pointing to ext-sq.squarespace.com).
+(Note: Leave the _dmarc, _domainkey, and spf1 TXT records alone—they are harmless configuration remnants).
+2. Add Your Three Subdomains
+Now, click that blue + Add record button three separate times to add the entry points for your self-hosted containers:
+First Record (For the Hermes Dashboard):
+Type: CNAME
+Name: agent
+Target: villagerchrisann.com
+Proxy status: 🟠 Proxied (Leave the orange cloud turned on)
+Second Record (For the Obsidian Web GUI):
+Type: CNAME
+Name: notes
+Target: villagerchrisann.com
+Proxy status: 🟠 Proxied
+Third Record (For n8n Automations):
+Type: CNAME
+Name: automate
+Target: villagerchrisann.com
+Proxy status: 🟠 Proxied
+3. Move to Activation
+Once those three are added and the old A records are gone, scroll down and click the big blue Continue to activation button at the bottom of your screen.
+Cloudflare will immediately show you a screen with its two custom nameservers. Once you have those nameservers on your screen, let me know, and I'll walk you through where to paste them into Squarespace to finalize the switch!
+Perfect! Looking at your updated screen (image_f7e017.png), those old Squarespace web records are gone, leaving a totally clean slate. This is exactly what we want.
+Go ahead and click that big blue Continue to activation button at the bottom.
+Once you click it, Cloudflare will display a screen showing its custom nameservers (usually two names, like something.ns.cloudflare.com). Keep that window open, and let's head over to Squarespace to apply them.
+Where to Paste the Nameservers in Squarespace
+Open a new browser tab, log into your Squarespace Dashboard, and go to your Domains panel.
+Click on villagerchrisann.com.
+On the left-side menu, click DNS, then select Domain Nameservers.
+Click the button that says Use Custom Nameservers.
+Squarespace will ask you to enter your account password or verify your 2FA to unlock the setting.
+Copy the first nameserver from your Cloudflare tab and paste it into the Nameserver 1 field. Do the same for Nameserver 2.
+Click Save in the top right.
+⏳ What Happens Next (The Wait)
+Once you hit save in Squarespace, you have officially handed the keys over to Cloudflare.
+The Propagation Period: It can take anywhere from a few minutes to a few hours for the global internet to realize that Cloudflare is now handling your domain traffic.
+The Check: You can head back to your Cloudflare dashboard tab and click Check Nameservers or refresh the page. Once it detects the change, the dashboard will change to a bright green "Active" status.
+While the internet does its handshake in the background, you can repeat this exact process for villagertim.com whenever you're ready. Once both domains show as active in Cloudflare, your tunnel container will automatically connect to them, and we can finally start testing those iPhone links!
+To see a visual walkthrough of the custom nameserver menu location inside Squarespace, check out this Squarespace Nameserver Tutorial, which shows exactly where to input the values.
+Excellent, you are looking directly at your master authentication keys! The screen in image_f7dc5e.png provides the two exact strings that will hook your home server up to the global internet.
+Here is your final checklist to lock this in:
+1. Copy the Nameservers from Cloudflare
+Look closely at Step 2 on your current screen (image_f7dc5e.png). Click the little copy icon next to each of your assigned nameservers:
+Nameserver 1: april.ns.cloudflare.com
+Nameserver 2: fonzie.ns.cloudflare.com
+2. Update Your Squarespace Settings
+Log into your Squarespace Domain Dashboard in another browser window.
+Select your domain, navigate to DNS, and then select Domain Nameservers.
+Click Use Custom Nameservers.
+Paste april.ns.cloudflare.com into the first slot and fonzie.ns.cloudflare.com into the second slot.
+Squarespace will automatically remove those old nsd1.squarespacedns.com through nsd4 lines shown in your image once you click Save.
+3. Check for DNSSEC (Just in case)
+Look at the Recommended section at the bottom of your image (image_f7dc5e.png). It asks you to make sure DNSSEC is off. If Squarespace prompts you with a warning about disabling DNSSEC when you click save, go ahead and confirm/continue. You can turn it back on with a single click inside Cloudflare later once everything is verified and running smoothly.
+Once you save the changes in Squarespace, click the Done or Check Nameservers button in Cloudflare. You've officially built the highway from your home server out to your iPhones!
+For a quick, clear look at exactly where these custom text fields sit inside the layout menus of your registrar, take a peek at this Squarespace Nameserver Setup Video. This visual guide demonstrates the exact button sequences for plugging in Cloudflare keys and disabling any blocking security settings safely.
+You are looking at the exact list of default Squarespace nameservers (nsd1 through nsd4).
+To swap these out for your new Cloudflare keys, you just need to click the text that says Use custom nameservers located right inside that introductory paragraph at the top of your screen.
+Here is exactly what to do step-by-step:
+1. Click the Edit Link
+Look closely at the text block right below the heading Domain Nameservers. The very last sentence reads:
+"To use custom nameservers, select Use custom nameservers."
+Click those blue words (Use custom nameservers).
+2. Enter Your Password / 2FA
+Squarespace will instantly trigger a security popup asking you to confirm your identity.
+Enter your Squarespace account password or verify the prompt via your phone's 2FA if you have it enabled.
+Click Continue when it warns you about moving away from default routing.
+3. Paste Your Cloudflare Keys
+The four default text lines you see in your image will vanish, replaced by two empty text fields named Nameserver 1 and Nameserver 2.
+Paste april.ns.cloudflare.com into the first box.
+Paste fonzie.ns.cloudflare.com into the second box.
+4. Save Changes
+Click the Save button in the top right corner of the dashboard.
+Once you hit save, Squarespace will push the update to the global registry. You can then go right back to your Cloudflare browser tab and hit "Check Nameservers" to verify the connection is live!
+The Squarespace Nameserver Update Tutorial shows a quick live walkthrough of clicking that specific inline link text and entering custom server strings if you want to verify the entry layout.

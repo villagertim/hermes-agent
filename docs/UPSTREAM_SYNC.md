@@ -30,7 +30,7 @@ Create an external temporary backup folder outside the repository and physically
 mkdir -p ../custom-deployment-backup/
 
 # Copy all customized and untracked config files
-cp --parents docker-compose.yml nginx.conf .tim-agent.env .chrisann-agent.env .htpasswd-tim .htpasswd-chrisann cli-config-tim.yaml cli-config-chrisann.yaml mcp_wrapper.sh AGENTS.md AGENT_GUIDE.md AGENT_RULES.md MCP_ACCESS_RULES.md SYSTEM_STATUS.md continuation_vasallo94.md continuation.md vasallo94_integration_plan.md obsidian_mcp_evaluation.md docs/local_model_log.md ../custom-deployment-backup/
+cp -r --parents docker-compose.yml nginx.conf .tim-agent.env .chrisann-agent.env .htpasswd-tim .htpasswd-chrisann cli-config-tim.yaml cli-config-chrisann.yaml mcp_wrapper.sh AGENTS.md AGENT_GUIDE.md AGENT_RULES.md MCP_ACCESS_RULES.md SYSTEM_STATUS.md continuation_vasallo94.md continuation.md vasallo94_integration_plan.md obsidian_mcp_evaluation.md docs/local_model_log.md docs/UPGRADE_LOG.md plugins/litellm-budget mcp-servers/litellm-spend scripts/cleanup-antigravity-cache.sh ../custom-deployment-backup/
 ```
 
 ### Step 3: Checkout a Fresh Upstream Sync Branch

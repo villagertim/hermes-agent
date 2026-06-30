@@ -48,3 +48,9 @@ When working on or configuring the `hermes-agent` codebase:
 - Configure tools properly so that the agents can read their assigned Obsidian vaults without breaching isolation.
 - Before executing any upstream merges or core framework updates, consult and follow the step-by-step upgrade protocol documented in [UPSTREAM_SYNC.md](file:///home/cia-one/dev/hermes-agent/docs/UPSTREAM_SYNC.md) to preserve the custom multi-tenant configuration layer.
 
+---
+
+## 🔒 SYSTEM-WIDE AGENT POLICY
+Before committing any code in this repository, you **MUST** read and adhere to the global directives at:
+`/home/cia-one/dev/system-management/DIRECTIVES.md`
+

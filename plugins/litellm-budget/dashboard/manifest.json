@@ -1,0 +1,14 @@
+{
+  "name": "litellm-budget",
+  "label": "LiteLLM Budget",
+  "description": "Monitor and set spend budgets for LiteLLM keys",
+  "icon": "Wallet",
+  "version": "1.0.0",
+  "tab": {
+    "path": "/litellm-budget",
+    "position": "after:skills"
+  },
+  "entry": "dist/index.js",
+  "css": "dist/style.css",
+  "api": "plugin_api.py"
+}

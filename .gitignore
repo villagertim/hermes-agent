@@ -111,6 +111,13 @@ docs/superpowers/*
 # also created in-repo when an agent operates in this checkout). Plans, audit
 # logs, and per-session caches are never artifacts of the codebase.
 .hermes/
+.tim-agent.env
+.chrisann-agent.env
+.ntfy-credentials
+/secrets/
+/secrets_inventory.md
+/secrets_inventory.md.enc
+/secrets_inventory.html
 
 # Desktop/bootstrap install marker written into the managed checkout root by the
 # bootstrap installer. It is Hermes-managed runtime state, never a code change —

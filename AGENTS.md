@@ -17,12 +17,12 @@ The goal of this workspace is to orchestrate two strictly isolated instances of 
 1. **Tim's Agent**
    - Connects to: `http://litellm-tim:4000/v1` (or `localhost:4001` from host)
    - API Key: `[Stored securely in .tim-agent.env]`
-   - Vault Access: `/home/cia-one/dev/litellm/data/tim/obsidian`
+   - Vault Access: `/home/cia-one/dev/hermes-agent/data/tim/obsidian`
 
 2. **Chrisann's Agent**
    - Connects to: `http://litellm-chrisann:4000/v1` (or `localhost:4002` from host)
    - API Key: `[Stored securely in .chrisann-agent.env]`
-   - Vault Access: `/home/cia-one/dev/litellm/data/chrisann/obsidian`
+   - Vault Access: `/home/cia-one/dev/hermes-agent/data/chrisann/obsidian`
 
 **Strict Isolation:** There must be ZERO crossover between these two environments. Tim's agent cannot access Chrisann's proxy or vault, and vice versa.
 

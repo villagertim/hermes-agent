@@ -46,6 +46,7 @@ When working on or configuring the `hermes-agent` codebase:
 - Check the official `hermes-agent` documentation for correct environment variable schemas (e.g., how to point the `OPENAI_API_BASE` and `OPENAI_API_KEY`).
 - Ensure all API endpoints point to the internal LiteLLM proxies rather than external providers like OpenRouter or OpenAI.
 - Configure tools properly so that the agents can read their assigned Obsidian vaults without breaching isolation.
+- **LiteLLM Proxy Health Probes:** When probing proxy availability, agents MUST query `http://<proxy-host>:4000/health/readiness` (unauthenticated 200 OK readiness probe). Do not probe `/health` without an `Authorization: Bearer <key>` header, as it requires master key auth and returns `401 Unauthorized`.
 - Before executing any upstream merges or core framework updates, consult and follow the step-by-step upgrade protocol documented in [UPSTREAM_SYNC.md](file:///home/cia-one/dev/hermes-agent/docs/UPSTREAM_SYNC.md) to preserve the custom multi-tenant configuration layer.
 
 ---

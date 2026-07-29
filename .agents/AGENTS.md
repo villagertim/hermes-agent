@@ -13,3 +13,7 @@
 
 4. **Automatic Reversion**:
    Immediately after the turn requesting the built-in model is finished, the agent must revert to the default `local-model` routing for all subsequent steps.
+
+5. **LiteLLM Proxy Health Probes**:
+   When probing LiteLLM proxy availability, the agent MUST query `http://<proxy-host>:4000/health/readiness` (unauthenticated 200 OK probe). Do not probe `/health` without an `Authorization: Bearer <key>` header, as it requires authentication and returns `401 Unauthorized`.
+

@@ -158,3 +158,15 @@ apps/desktop/demo/
 # PR body is the archive. See the hermes-agent-dev skill's
 # pr-infographic-workflow reference (storage rule + lapse #8 / #COMMIT-1).
 infographic/
+
+# Credentials and local env configs
+.*.env
+.htpasswd*
+.ntfy-credentials
+secrets/
+test_auth.py
+
+# Local notes
+*.odt
+notes_part_*.txt
+

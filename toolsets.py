@@ -78,6 +78,10 @@ _HERMES_CORE_TOOLS = [
     "kanban_attach", "kanban_attach_url", "kanban_attachments",
     # Computer use (macOS, gated on cua-driver being installed via check_fn)
     "computer_use",
+    # Lanai Shade Controller (gated on LANAI_SHADE_SERVICE_URL and SHADE_API_KEY via check_fn)
+    "norman_get_shades", "norman_set_shade", "norman_set_all_shades",
+    "norman_set_override_hold", "norman_set_vacation_mode", "norman_clear_override",
+    "norman_enable_sun_tracker", "norman_disable_sun_tracker", "norman_get_sun_tracker_status",
 ]
 
 # Webhook events may originate from untrusted third-party content (for example,
@@ -204,6 +208,16 @@ TOOLSETS = {
     "todo": {
         "description": "Task planning and tracking for multi-step work",
         "tools": ["todo"],
+        "includes": []
+    },
+
+    "shade_control": {
+        "description": "Lanai shade controller tools for motorized shade position control, overrides, vacation mode, and sun tracking",
+        "tools": [
+            "norman_get_shades", "norman_set_shade", "norman_set_all_shades",
+            "norman_set_override_hold", "norman_set_vacation_mode", "norman_clear_override",
+            "norman_enable_sun_tracker", "norman_disable_sun_tracker", "norman_get_sun_tracker_status",
+        ],
         "includes": []
     },
     

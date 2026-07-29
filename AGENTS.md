@@ -1,3 +1,20 @@
+# 🚨 MANDATORY ARCHITECTURAL BOUNDARY: AGENT CONTAINER ISOLATION
+
+**CRITICAL MANDATE FOR ALL AI AGENTS OPERATING IN THIS WORKSPACE:**
+
+1. **AGENTS ONLY EXIST INSIDE DOCKER CONTAINERS**:
+   Agents in this workspace DO NOT exist on the host filesystem or workspace root (`/home/cia-one/dev/hermes-agent`). They exist strictly inside isolated Docker containers (`hermes-tim` and `hermes-chrisann`).
+
+2. **AUTHORIZED RUNTIME PATHS**:
+   The ONLY paths where active agent instructions, runtime configurations, BOOT checklists, and files exist for running containers are:
+   - Tim's Agent: `./data/tim/hermes/` (mounted at `/opt/data` inside `hermes-tim`)
+   - Chrisann's Agent: `./data/chrisann/hermes/` (mounted at `/opt/data` inside `hermes-chrisann`)
+
+3. **NO REPO ROOT CONFLATION**:
+   NEVER write runtime agent instructions, state files, or startup checks to the host repository root expecting running containers to see them. Always inspect and maintain `./data/tim/hermes` and `./data/chrisann/hermes` directly.
+
+---
+
 # INSTRUCTIONS FOR HERMES-AGENT WORKSPACE
 
 This document provides comprehensive instructions and boundaries for AI agents working in the `hermes-agent` repository workspace.

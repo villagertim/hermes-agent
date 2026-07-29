@@ -1,0 +1,67 @@
+# Chrisann's Hermes Agent — CLI Configuration
+# This file is the active config for Chrisann's agent instance.
+# It points the framework at Chrisann's dedicated LiteLLM proxy on port 4002.
+
+# =============================================================================
+# Model Configuration
+# =============================================================================
+model:
+  # Default model to use. These names match the tier aliases defined in
+  # Chrisann's LiteLLM proxy config (config_chrisann.yaml).
+  # Options: "cheap", "complex", "reasoning"
+  default: "cheap"
+
+  # Use the "openrouter" provider profile — it is OpenAI-compatible, which
+  # matches LiteLLM's API surface exactly. The base_url below overrides the
+  # default openrouter.ai endpoint to point to Chrisann's local proxy instead.
+  provider: "openrouter"
+
+  # Chrisann's LiteLLM proxy — all requests go here, NOT to openrouter.ai.
+  # Auth is handled via OPENROUTER_API_KEY in .chrisann-agent.env.
+  base_url: "http://litellm-chrisann:4000/v1"
+
+# =============================================================================
+# Terminal Tool Configuration
+# =============================================================================
+terminal:
+  backend: "local"
+  cwd: "."
+  timeout: 180
+  lifetime_seconds: 300
+
+# =============================================================================
+# Memory
+# =============================================================================
+memory:
+  memory_enabled: true
+  user_profile_enabled: true
+
+# =============================================================================
+# Agent Behavior
+# =============================================================================
+agent:
+  max_turns: 60
+  verbose: false
+  reasoning_effort: "low"
+
+# =============================================================================
+# Context Compression Configuration
+# =============================================================================
+compression:
+  enabled: true
+  target_ratio: 0.5
+
+# =============================================================================
+# MCP Servers
+# =============================================================================
+mcp_servers:
+  obsidian:
+    command: "uv"
+    args: ["run", "--project", "/opt/obsidian-mcp-server", "obsidian-mcp-server"]
+    env:
+      OBSIDIAN_VAULT_PATH: "/opt/data/obsidian"
+      OBSIDIAN_MCP_TOOL_SETS: "notes_write,vault_analysis,obsidianrag"
+  openrouter_tools:
+    command: "node"
+    args: ["/home/cia-one/dev/openrouter-mcp-2/build/index.js", "--profile", "antigravity"]
+
